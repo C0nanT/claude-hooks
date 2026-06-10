@@ -8,6 +8,24 @@ npx @c0nant/claude-hooks list       # show what's installed
 npx @c0nant/claude-hooks uninstall  # remove all hooks this tool installed
 ```
 
+## Related projects
+
+This project is one half of a two-part setup. The hooks reference skill assets installed by the companion skills repo:
+
+| Project | Purpose |
+|---------|---------|
+| **[C0nanT/skills](https://github.com/C0nanT/skills)** (`npx skills@latest`) | Installs the skill assets (`caveman`, `git-guardrails-claude-code`) that these hooks read at runtime |
+| **[C0nanT/claude-hooks](https://github.com/C0nanT/claude-hooks)** (`npx @c0nant/claude-hooks`) | Wires the hooks into `settings.json` so the agent runs those skills automatically |
+
+Install order: skills first, then hooks.
+
+```bash
+npx skills@latest add C0nanT/skills
+npx @c0nant/claude-hooks install
+```
+
+The hooks no-op gracefully if a skill is absent, so order only matters for full functionality.
+
 ## Requirements
 
 - `bash` and `jq`. On Ubuntu/WSL: `sudo apt-get install -y jq`
