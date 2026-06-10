@@ -1,0 +1,26 @@
+{
+  "name": "@c0nant/claude-hooks",
+  "version": "0.1.0",
+  "description": "Portable, removable Claude Code hooks — caveman auto-start and git guardrails, managed via npx.",
+  "keywords": ["claude-code", "hooks", "ai", "claude"],
+  "author": "Conan Torres <conantorreswf@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/C0nanT/claude-hooks.git"
+  },
+  "bin": {
+    "claude-hooks": "./bin/claude-hooks.js"
+  },
+  "files": [
+    "bin/",
+    "hooks/",
+    "lib/",
+    "install.sh",
+    "uninstall.sh",
+    "list.sh"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
