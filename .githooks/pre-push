@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+echo "pre-push: running test suite..."
+bash "$(git rev-parse --show-toplevel)/test/run.sh"

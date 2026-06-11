@@ -13,41 +13,41 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
+# shellcheck source=lib/settings.sh
+source "$SCRIPT_DIR/lib/settings.sh"
+HOOKS_DIR="$SCRIPT_DIR/hooks"
 
 require_jq
 [ -f "$SETTINGS_FILE" ] || { echo "nothing to do: $SETTINGS_FILE does not exist"; exit 0; }
 ensure_settings
 
-# Remove every hook whose command contains $marker, across all events.
 remove_marker() {
   local marker="$1"
-  jq --arg m "$marker" '
-    if .hooks then
-      .hooks |= (
-        to_entries
-        | map(.value |= [ .[]
-            | .hooks = [ .hooks[] | select((.command // "") | contains($m) | not) ]
-            | select((.hooks | length) > 0) ])
-        | map(select((.value | length) > 0))
-        | from_entries
-      )
-      | if (.hooks | length) == 0 then del(.hooks) else . end
-    else . end
-  ' "$SETTINGS_FILE" | write_settings
+  remove_hook "$marker" < "$SETTINGS_FILE" | write_settings
 }
 
-notification_hook_present() {
-  local name="$1"
-  jq -e --arg m "${HOOK_NS}${name}" '
-    .hooks // {} | to_entries[] | .value[] | .hooks[] |
-    select((.command // "") | contains($m))
-  ' "$SETTINGS_FILE" >/dev/null 2>&1
-}
+cleanup_bundled_scripts() {
+  local -A seen
+  shopt -s nullglob
+  local files=("$HOOKS_DIR"/*.json)
+  shopt -u nullglob
 
-cleanup_notification_scripts() {
-  if ! notification_hook_present notify-done && ! notification_hook_present notify-attention; then
-    rm -rf "$HOME/.claude/hooks-lib/notification"
-  fi
+  for f in "${files[@]}"; do
+    local sd; sd="$(jq -r '.scripts_dir // ""' "$f")"
+    [[ -z "$sd" ]] && continue
+    local dest; dest="$(basename "$sd")"
+    [[ -n "${seen[$dest]+_}" ]] && continue
+    seen[$dest]=1
+
+    local still_installed=false
+    for g in "${files[@]}"; do
+      local gsd; gsd="$(jq -r '.scripts_dir // ""' "$g")"
+      [[ "$(basename "$gsd")" == "$dest" ]] || continue
+      hook_present "${HOOK_NS}$(basename "$g" .json)" < "$SETTINGS_FILE" \
+        && { still_installed=true; break; }
+    done
+    $still_installed || rm -rf "$HOME/.claude/hooks-lib/$dest"
+  done
 }
 
 main() {
@@ -57,12 +57,12 @@ main() {
   if [ "$#" -gt 0 ]; then
     local n
     for n in "$@"; do remove_marker "${HOOK_NS}${n%.json}"; done
-    cleanup_notification_scripts
+    cleanup_bundled_scripts
   else
     # No args: remove the whole namespace (every hook this tool ever installed,
     # including ones whose definition file was since deleted).
     remove_marker "$HOOK_NS"
-    cleanup_notification_scripts
+    cleanup_bundled_scripts
   fi
 
   after="$(jq -S . "$SETTINGS_FILE")"

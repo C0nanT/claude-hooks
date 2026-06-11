@@ -16,6 +16,9 @@ node bin/claude-hooks.js install
 node bin/claude-hooks.js uninstall caveman
 node bin/claude-hooks.js list
 
+# Run tests
+bash test/run.sh
+
 # Release (bumps package.json, commits, tags, pushes)
 ./release.sh [patch|minor|major]   # then: npm publish --access public
 
@@ -25,24 +28,34 @@ node bin/claude-hooks.js list
 
 No `npm install` needed — zero dependencies.
 
+### First-time setup (pre-push hook)
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ## Architecture
 
 ```
 bin/claude-hooks.js     # CLI entry: dispatches to install.sh / uninstall.sh / list.sh
 lib/common.sh           # Shared: HOOK_NS marker, SETTINGS_FILE resolution, jq helpers
-hooks/*.json            # Hook definitions: { event, matcher?, command }
+lib/settings.sh         # Pure settings-mutation functions (upsert_hook, remove_hook, hook_present)
+hooks/*.json            # Hook definitions: { event, matcher?, scripts_dir?, command }
 install.sh              # Upserts hooks into settings.json (idempotent)
 uninstall.sh            # Removes hooks by marker (surgical, namespace-safe)
 list.sh                 # Lists installed hooks from settings.json
+test/run.sh             # Test suite (no deps beyond jq and node)
 ```
 
 ### Hook definition format (`hooks/*.json`)
 
 ```json
-{ "event": "SessionStart", "matcher": "Bash", "command": "..." }
+{ "event": "SessionStart", "matcher": "Bash", "scripts_dir": "lib/notification", "command": "..." }
 ```
 
-`matcher` is optional (used for `PreToolUse`/`PostToolUse`). `command` is a shell string injected into `settings.json`.
+- `matcher` — optional, used for `PreToolUse`/`PostToolUse`
+- `scripts_dir` — optional, path relative to repo root; contents are copied to `~/.claude/hooks-lib/<basename>/` on install and removed on uninstall when no hook with that `scripts_dir` remains
+- `command` — shell string injected into `settings.json`
 
 ### Marker protocol
 

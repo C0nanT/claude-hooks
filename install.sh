@@ -13,6 +13,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
+# shellcheck source=lib/settings.sh
+source "$SCRIPT_DIR/lib/settings.sh"
 HOOKS_DIR="$SCRIPT_DIR/hooks"
 
 require_jq
@@ -36,25 +38,14 @@ install_one() {
 
   # Upsert: strip any existing copy of this marker (across the target event),
   # then append the fresh group. Keeps the installed hook in sync with the file.
-  jq \
-    --arg ev "$event" \
-    --arg matcher "$matcher" \
-    --arg cmd "$full_cmd" \
-    --arg m "$marker" '
-    (if $matcher == ""
-       then {hooks: [{type: "command", command: $cmd}]}
-       else {matcher: $matcher, hooks: [{type: "command", command: $cmd}]}
-     end) as $group
-    | .hooks[$ev] = [ ((.hooks[$ev] // [])[])
-        | .hooks = [ .hooks[] | select((.command // "") | contains($m) | not) ]
-        | select((.hooks | length) > 0) ]
-    | .hooks[$ev] += [ $group ]
-  ' "$SETTINGS_FILE" | write_settings
+  upsert_hook "$event" "$matcher" "$full_cmd" "$marker" < "$SETTINGS_FILE" | write_settings
 
-  if [[ "$name" == notify-done || "$name" == notify-attention ]]; then
-    local dest="$HOME/.claude/hooks-lib/notification"
+  local scripts_dir
+  scripts_dir="$(jq -r '.scripts_dir // ""' "$file")"
+  if [[ -n "$scripts_dir" ]]; then
+    local dest="$HOME/.claude/hooks-lib/$(basename "$scripts_dir")"
     mkdir -p "$dest"
-    cp "$SCRIPT_DIR/lib/notification/"*.sh "$dest/"
+    cp "$SCRIPT_DIR/$scripts_dir/"*.sh "$dest/"
   fi
 
   echo "installed $name -> $event${matcher:+ (matcher: $matcher)}"

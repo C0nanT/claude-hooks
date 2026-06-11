@@ -17,7 +17,7 @@ jq -r --arg ns "$HOOK_NS" '
   | .matcher as $matcher
   | .hooks[]?
   | (.command // "") as $c
-  | select($c | contains($ns))
-  | ($c | split("\n")[] | select(contains($ns)) | ltrimstr("# ")) as $marker
+  | select($c | split("\n")[0] | startswith("# " + $ns))
+  | ($c | split("\n")[0] | ltrimstr("# ")) as $marker
   | "  - \($marker)  [\($e.key)\(if $matcher then " matcher=" + $matcher else "" end)]"
 ' "$SETTINGS_FILE" || true
