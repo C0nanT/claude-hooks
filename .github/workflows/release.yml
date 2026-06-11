@@ -2,20 +2,34 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
       - run: sudo apt-get install -y jq
       - run: bash test/run.sh
-      - run: npm publish --access public
+      - name: Bump version, tag, and publish
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          npm version patch --no-git-tag-version
+          VERSION="$(node -p "require('./package.json').version")"
+          git add package.json
+          git commit -m "$VERSION [skip ci]"
+          git tag "v$VERSION"
+          git push origin main --tags
+          npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
