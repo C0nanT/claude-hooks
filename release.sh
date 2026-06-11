@@ -28,7 +28,5 @@ git tag "v$VERSION"
 git push origin main --tags
 
 echo ""
-echo "Released v$VERSION. Publish to npm:"
-echo ""
-echo "  npm publish --access public"
+echo "Released v$VERSION — GitHub Actions will publish to npm."
 echo ""
