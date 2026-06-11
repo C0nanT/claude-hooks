@@ -8,31 +8,57 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Companion to [C0nanT/skills](https://github.com/C0nanT/skills) — hooks reference skill assets at `~/.claude/skills/<skill-name>/` and no-op gracefully when the skill is absent.
 
+## Development setup
+
+```bash
+git config core.hooksPath .githooks   # ativa pre-push: bloqueia push se testes falharem
+```
+
+Sem `npm install` — zero dependências. Requer `jq` instalado.
+
 ## Commands
 
 ```bash
-# Run locally without publishing
+# Testar localmente
 node bin/claude-hooks.js install
 node bin/claude-hooks.js uninstall caveman
 node bin/claude-hooks.js list
 
-# Run tests
+# Rodar suite de testes
 bash test/run.sh
 
-# Release (bumps package.json, commits, tags, pushes)
-./release.sh [patch|minor|major]   # then: npm publish --access public
-
-# Reset test environment
+# Resetar ambiente de dev
 ./reset-env.sh
 ```
 
-No `npm install` needed — zero dependencies.
+## Versionamento e releases
 
-### First-time setup (pre-push hook)
+**Patch (bugfix/melhoria pequena):** só fazer push na `main`. O CI bumpa automaticamente e publica no npm.
+
+```
+git push origin main
+# → testa → bumpa patch (0.1.6 → 0.1.7) → publica @c0nant/claude-hooks@0.1.7
+```
+
+**Minor ou major (breaking change / feature grande):** usar o script manual antes do push.
 
 ```bash
-git config core.hooksPath .githooks
+./release.sh minor   # ou major
+# bumpa versão, commita, cria tag, faz push — CI publica automaticamente
 ```
+
+### Pipelines CI (`.github/workflows/`)
+
+| Arquivo | Quando roda | O que faz |
+|---|---|---|
+| `test.yml` | Push em qualquer branch (exceto `main`), PRs | Roda `test/run.sh` |
+| `release.yml` | Push na `main` | Testa → bumpa patch → `npm publish` |
+
+O commit de bump gerado pelo CI tem `[skip ci]` no título para evitar loop.
+
+### Segredo necessário no GitHub
+
+`NPM_TOKEN` em `Settings → Secrets and variables → Actions` — token de automação do npmjs.com.
 
 ## Architecture
 
