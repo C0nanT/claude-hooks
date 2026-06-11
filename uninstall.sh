@@ -36,6 +36,20 @@ remove_marker() {
   ' "$SETTINGS_FILE" | write_settings
 }
 
+notification_hook_present() {
+  local name="$1"
+  jq -e --arg m "${HOOK_NS}${name}" '
+    .hooks // {} | to_entries[] | .value[] | .hooks[] |
+    select((.command // "") | contains($m))
+  ' "$SETTINGS_FILE" >/dev/null 2>&1
+}
+
+cleanup_notification_scripts() {
+  if ! notification_hook_present notify-done && ! notification_hook_present notify-attention; then
+    rm -rf "$HOME/.claude/hooks-lib/notification"
+  fi
+}
+
 main() {
   local before after
   before="$(jq -S . "$SETTINGS_FILE")"
@@ -43,10 +57,12 @@ main() {
   if [ "$#" -gt 0 ]; then
     local n
     for n in "$@"; do remove_marker "${HOOK_NS}${n%.json}"; done
+    cleanup_notification_scripts
   else
     # No args: remove the whole namespace (every hook this tool ever installed,
     # including ones whose definition file was since deleted).
     remove_marker "$HOOK_NS"
+    cleanup_notification_scripts
   fi
 
   after="$(jq -S . "$SETTINGS_FILE")"

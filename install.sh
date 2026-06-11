@@ -51,6 +51,12 @@ install_one() {
     | .hooks[$ev] += [ $group ]
   ' "$SETTINGS_FILE" | write_settings
 
+  if [[ "$name" == notify-done || "$name" == notify-attention ]]; then
+    local dest="$HOME/.claude/hooks-lib/notification"
+    mkdir -p "$dest"
+    cp "$SCRIPT_DIR/lib/notification/"*.sh "$dest/"
+  fi
+
   echo "installed $name -> $event${matcher:+ (matcher: $matcher)}"
 }
 

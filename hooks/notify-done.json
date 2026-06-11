@@ -1,0 +1,4 @@
+{
+  "event": "Stop",
+  "command": "f=\"$HOME/.claude/hooks-lib/notification/notify-done.sh\"; [ -f \"$f\" ] && exec bash \"$f\"; exit 0"
+}
