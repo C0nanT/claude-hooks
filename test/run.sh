@@ -142,6 +142,53 @@ CLAUDE_SETTINGS="$SF2" HOME="$FAKE_HOME" node bin/claude-hooks.js uninstall noti
 assert_eq "scripts dir removed after last hook uninstalled"  "false" \
   "$([[ -d "$DEST" ]] && echo true || echo false)"
 
+# ── protect-dotenv script ────────────────────────────────────────────────────
+BLOCK_SCRIPT="lib/protect-dotenv/block-dotenv.sh"
+
+make_input() {
+  local tool="$1" key="$2" val="$3"
+  printf '{"tool_name":"%s","tool_input":{"%s":"%s"}}' "$tool" "$key" "$val"
+}
+
+assert_blocked() {
+  local desc="$1" input="$2"
+  local rc=0
+  printf '%s' "$input" | bash "$BLOCK_SCRIPT" >/dev/null 2>&1 || rc=$?
+  if [[ $rc -eq 2 ]]; then ok "$desc"
+  else fail "$desc" "expected exit 2, got $rc"; fi
+}
+
+assert_allowed() {
+  local desc="$1" input="$2"
+  local rc=0
+  printf '%s' "$input" | bash "$BLOCK_SCRIPT" >/dev/null 2>&1 || rc=$?
+  if [[ $rc -eq 0 ]]; then ok "$desc"
+  else fail "$desc" "expected exit 0, got $rc"; fi
+}
+
+section "protect-dotenv: blocks .env reads"
+assert_blocked "Read .env"             "$(make_input Read file_path /project/.env)"
+assert_blocked "Edit .env"             "$(make_input Edit file_path /project/.env)"
+assert_blocked "Write .env"            "$(make_input Write file_path /project/.env)"
+assert_blocked "Read .env.local"       "$(make_input Read file_path /project/.env.local)"
+assert_blocked "Read .env.production"  "$(make_input Read file_path /project/.env.production)"
+
+section "protect-dotenv: allows safe variants"
+assert_allowed "Read .env.example"   "$(make_input Read  file_path /project/.env.example)"
+assert_allowed "Edit .env.example"   "$(make_input Edit  file_path /project/.env.example)"
+assert_allowed "Read .env.sample"    "$(make_input Read  file_path /project/.env.sample)"
+assert_allowed "Read .env.dist"      "$(make_input Read  file_path /project/.env.dist)"
+assert_allowed "Read .env.template"  "$(make_input Read  file_path /project/.env.template)"
+assert_allowed "Unrelated tool"      "$(make_input SessionStart foo bar)"
+
+section "protect-dotenv: bash command detection"
+assert_blocked "cat .env"               "$(make_input Bash command 'cat .env')"
+assert_blocked "source .env"            "$(make_input Bash command 'source .env')"
+assert_blocked "cat /app/.env"          "$(make_input Bash command 'cat /app/.env')"
+assert_allowed "cat .env.example"       "$(make_input Bash command 'cat .env.example')"
+assert_allowed "echo .env.example path" "$(make_input Bash command 'echo .env.example')"
+assert_allowed "grep in .env.example"   "$(make_input Bash command 'grep KEY .env.example')"
+
 # ── summary ──────────────────────────────────────────────────────────────────
 echo
 echo "────────────────────────────────"

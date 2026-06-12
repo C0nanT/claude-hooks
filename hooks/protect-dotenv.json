@@ -1,0 +1,6 @@
+{
+  "event": "PreToolUse",
+  "matcher": ".*",
+  "scripts_dir": "lib/protect-dotenv",
+  "command": "f=\"$HOME/.claude/hooks-lib/protect-dotenv/block-dotenv.sh\"; [ -f \"$f\" ] && exec bash \"$f\"; exit 0"
+}
