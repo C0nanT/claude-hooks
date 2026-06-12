@@ -11,54 +11,54 @@ Companion to [C0nanT/skills](https://github.com/C0nanT/skills) — hooks referen
 ## Development setup
 
 ```bash
-git config core.hooksPath .githooks   # ativa pre-push: bloqueia push se testes falharem
+git config core.hooksPath .githooks   # enables pre-push hook: blocks push if tests fail
 ```
 
-Sem `npm install` — zero dependências. Requer `jq` instalado.
+No `npm install` — zero dependencies. Requires `jq` installed.
 
 ## Commands
 
 ```bash
-# Testar localmente
+# Run locally
 node bin/claude-hooks.js install
 node bin/claude-hooks.js uninstall caveman
 node bin/claude-hooks.js list
 
-# Rodar suite de testes
+# Run test suite
 bash test/run.sh
 
-# Resetar ambiente de dev
+# Full dev environment reset (uninstalls hooks + removes ~/.agents/skills and ~/.claude/skills)
 ./reset-env.sh
 ```
 
-## Versionamento e releases
+There is no way to run a single test in isolation — `test/run.sh` runs all sections. Each `section "..."` block in the test file corresponds to one logical test group.
 
-**Patch (bugfix/melhoria pequena):** só fazer push na `main`. O CI bumpa automaticamente e publica no npm.
+## Versioning and releases
+
+**Patch (bugfix/small improvement):** just push to `main`. CI auto-bumps and publishes to npm.
 
 ```
 git push origin main
-# → testa → bumpa patch (0.1.6 → 0.1.7) → publica @c0nant/claude-hooks@0.1.7
+# → tests → bumps patch (0.1.6 → 0.1.7) → publishes @c0nant/claude-hooks@0.1.7
 ```
 
-**Minor ou major (breaking change / feature grande):** usar o script manual antes do push.
+**Minor or major (breaking change / big feature):** run the manual script before pushing.
 
 ```bash
-./release.sh minor   # ou major
-# bumpa versão, commita, cria tag, faz push — CI publica automaticamente
+./release.sh minor   # or major
+# bumps version, commits, creates tag, pushes — CI publishes automatically
 ```
 
-### Pipelines CI (`.github/workflows/`)
+### CI pipelines (`.github/workflows/`)
 
-| Arquivo | Quando roda | O que faz |
+| File | Runs when | Does |
 |---|---|---|
-| `test.yml` | Push em qualquer branch (exceto `main`), PRs | Roda `test/run.sh` |
-| `release.yml` | Push na `main` | Testa → bumpa patch → `npm publish` |
+| `test.yml` | Push to any branch (except `main`), PRs | Runs `test/run.sh` |
+| `release.yml` | Push to `main` | Tests → bumps patch → `npm publish` |
 
-O commit de bump gerado pelo CI tem `[skip ci]` no título para evitar loop.
+CI bump commits include `[skip ci]` to prevent loops.
 
-### Segredo necessário no GitHub
-
-`NPM_TOKEN` em `Settings → Secrets and variables → Actions` — token de automação do npmjs.com.
+Required GitHub secret: `NPM_TOKEN` in `Settings → Secrets and variables → Actions`.
 
 ## Architecture
 
@@ -70,7 +70,8 @@ hooks/*.json            # Hook definitions: { event, matcher?, scripts_dir?, com
 install.sh              # Upserts hooks into settings.json (idempotent)
 uninstall.sh            # Removes hooks by marker (surgical, namespace-safe)
 list.sh                 # Lists installed hooks from settings.json
-test/run.sh             # Test suite (no deps beyond jq and node)
+test/run.sh             # Test suite: unit tests (sourcing lib/settings.sh) + CLI integration tests
+specs/                  # Design docs and specs for planned/in-progress features
 ```
 
 ### Hook definition format (`hooks/*.json`)
@@ -90,6 +91,12 @@ Every installed hook's command is prefixed with `# claude-hook:<name>` (defined 
 ### Settings file targeting
 
 `SETTINGS_FILE` defaults to `~/.claude/settings.json`. Set `CLAUDE_SETTINGS=.claude/settings.json` for project-scoped installs. All three scripts inherit this from `lib/common.sh`.
+
+### Test structure
+
+`test/run.sh` has two layers:
+1. **Unit tests** — `source lib/settings.sh` directly and pipe JSON through `upsert_hook`/`remove_hook`/`hook_present`. No file I/O.
+2. **CLI integration tests** — invoke `node bin/claude-hooks.js` with `CLAUDE_SETTINGS` pointed at a temp file, assert on the resulting JSON.
 
 ## Adding a new hook
 
