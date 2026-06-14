@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 CONTEXT_MAX=200000
 BAR_WIDTH=30
 
 payload=$(cat 2>/dev/null) || exit 0
 transcript=$(printf '%s' "$payload" | jq -r '.transcript_path // empty' 2>/dev/null) || exit 0
-[ -z "$transcript" ] || [ ! -f "$transcript" ] && exit 0
+[ -z "$transcript" ] && exit 0
+[ ! -f "$transcript" ] && exit 0
 
 chars=$(wc -c < "$transcript" 2>/dev/null) || exit 0
 tokens=$(( chars / 4 ))
-(( tokens > CONTEXT_MAX )) && tokens=$CONTEXT_MAX
+if (( tokens > CONTEXT_MAX )); then tokens=$CONTEXT_MAX; fi
 pct=$(( tokens * 100 / CONTEXT_MAX ))
 
 filled=$(( pct * BAR_WIDTH / 100 ))
@@ -35,4 +35,4 @@ max_k=$(( CONTEXT_MAX / 1000 ))
 free_k=$(( free_tokens / 1000 ))
 
 printf "\n${color}◈ Context  [%s]  %d%%  (~%dk / %dk tokens)  free: ~%dk${reset}\n\n" \
-  "$bar" "$pct" "$used_k" "$max_k" "$free_k"
+  "$bar" "$pct" "$used_k" "$max_k" "$free_k" >&2
