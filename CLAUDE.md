@@ -35,30 +35,39 @@ There is no way to run a single test in isolation — `test/run.sh` runs all sec
 
 ## Versioning and releases
 
-**Patch (bugfix/small improvement):** just push to `main`. CI auto-bumps and publishes to npm.
+See also `README.md` → **Development**.
+
+### Day-to-day
+
+- Branch/PR: push freely — CI only runs `test/run.sh` (`.github/workflows/test.yml`).
+- `main`: every push triggers release pipeline (`.github/workflows/release.yml`).
+
+### Patch (default)
+
+Bugfix or small improvement — **do not** bump `package.json` locally. Merge to `main`:
 
 ```
 git push origin main
-# → tests → bumps patch (0.1.6 → 0.1.7) → publishes @c0nant/claude-hooks@0.1.7
+# → tests → patch bump (0.1.11 → 0.1.12) → commit "[skip ci]" → tag → npm publish
 ```
 
-**Minor or major (breaking change / big feature):** run the manual script before pushing.
+### Minor / major
+
+New feature or breaking change — CI always patches; bump semver manually first:
 
 ```bash
-./release.sh minor   # or major
-# bumps version, commits, creates tag, pushes — CI publishes automatically
+./release.sh minor   # or major — requires clean working tree
+# npm version → commit → tag vX.Y.Z → push main --tags → CI publishes
 ```
 
-### CI pipelines (`.github/workflows/`)
+### CI pipelines
 
 | File | Runs when | Does |
 |---|---|---|
-| `test.yml` | Push to any branch (except `main`), PRs | Runs `test/run.sh` |
-| `release.yml` | Push to `main` | Tests → bumps patch → `npm publish` |
+| `test.yml` | Push to any branch except `main`, PRs | `test/run.sh` |
+| `release.yml` | Push to `main` | Tests → patch bump → `npm publish` |
 
-CI bump commits include `[skip ci]` to prevent loops.
-
-Required GitHub secret: `NPM_TOKEN` in `Settings → Secrets and variables → Actions`.
+CI bump commits use `[skip ci]` to avoid infinite loops. Requires `NPM_TOKEN` in GitHub Actions secrets.
 
 ## Architecture
 
