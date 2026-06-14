@@ -1,0 +1,5 @@
+{
+  "event": "Stop",
+  "scripts_dir": "lib/context-bar",
+  "command": "f=\"$HOME/.claude/hooks-lib/context-bar/context-bar.sh\"; [ -f \"$f\" ] && exec bash \"$f\"; exit 0"
+}
