@@ -1,6 +1,6 @@
 {
   "name": "@c0nant/claude-hooks",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Portable, removable Claude Code hooks — caveman auto-start and git guardrails, managed via npx.",
   "keywords": [
     "claude-code",
