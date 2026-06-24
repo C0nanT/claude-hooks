@@ -25,7 +25,7 @@ VERSION="$(node -p "require('./package.json').version")"
 git add package.json
 git commit -m "$VERSION"
 git tag "v$VERSION"
-git push origin main --tags
+git push origin main "v$VERSION"
 
 echo ""
 echo "Released v$VERSION — GitHub Actions will publish to npm."
