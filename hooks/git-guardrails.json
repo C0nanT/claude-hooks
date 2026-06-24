@@ -1,5 +1,6 @@
 {
   "event": "PreToolUse",
   "matcher": "Bash",
-  "command": "f=\"$HOME/.claude/skills/git-guardrails-claude-code/scripts/block-dangerous-git.sh\"; [ -f \"$f\" ] && exec bash \"$f\"; exit 0"
+  "scripts_dir": "lib/git-guardrails",
+  "command": "f=\"$HOME/.claude/hooks-lib/git-guardrails/block-dangerous-git.sh\"; [ -f \"$f\" ] && exec bash \"$f\"; exit 0"
 }

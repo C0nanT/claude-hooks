@@ -1,10 +1,12 @@
 # claude-hooks
 
-Claude Code hooks companion to [C0nanT/skills](https://github.com/C0nanT/skills). Wires the caveman and git-guardrails skills into `settings.json` automatically — no hand-editing.
+Claude Code hooks companion to [C0nanT/skills](https://github.com/C0nanT/skills). Wires the caveman and git-guardrails hooks into `settings.json` automatically — no hand-editing.
 
 ## Prerequisites
 
-**Install [C0nanT/skills](https://github.com/C0nanT/skills) first.** The hooks reference skill assets at runtime (`~/.claude/skills/caveman/`, `~/.claude/skills/git-guardrails-claude-code/`) — without the skills installed, the hooks no-op.
+The `git-guardrails` hook is self-contained — it bundles its own script, no skills required.
+
+The `caveman` hook reads a skill asset at runtime (`~/.claude/skills/caveman/SKILL.md`). If you want it, **install [C0nanT/skills](https://github.com/C0nanT/skills) first** — without it, the caveman hook no-ops:
 
 ```bash
 npx skills@latest add C0nanT/skills
@@ -25,7 +27,7 @@ npx @c0nant/claude-hooks install
 | `caveman` | `SessionStart` | Injects the caveman ruleset as hidden context — agent starts in token-saving mode every session without typing `/caveman` |
 | `git-guardrails` | `PreToolUse/Bash` | Blocks destructive git commands (`push`, `reset --hard`, `clean -f`, `branch -D`, `checkout .`, `restore .`) before execution |
 
-Both hooks no-op gracefully if the skill is absent.
+The `caveman` hook no-ops gracefully if its skill asset is absent; `git-guardrails` bundles its own script and needs nothing else.
 
 ## Commands
 
