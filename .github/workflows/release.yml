@@ -29,7 +29,7 @@ jobs:
           git add package.json
           git commit -m "$VERSION [skip ci]"
           git tag "v$VERSION"
-          git push origin main --tags
           npm publish --access public
+          git push origin main --tags
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
