@@ -16,7 +16,6 @@ DANGEROUS_PATTERNS=(
   "git restore \."
   "push --force"
   "reset --hard"
-  "git add"
   "git rm"
   "git mv"
 )
