@@ -1,0 +1,38 @@
+# Contributing
+
+## Commit message convention
+
+The release pipeline (`.github/workflows/release.yml`) reads commit messages on
+`main` since the last tag to decide the version bump automatically. Prefix
+your commit subject accordingly:
+
+| Prefix | Bump | Example |
+|---|---|---|
+| `fix:`, or no prefix at all | **patch** | `fix: correct hook_present exit code` |
+| `feat:` | **minor** | `feat: add protect-dotenv hook` |
+| `feat!:`, `fix!:`, any `!:` after the type, or a `BREAKING CHANGE` footer | **major** | `feat!: drop support for Node < 18` |
+
+Only the commit **subject line** (and body, for `BREAKING CHANGE` footers) is
+scanned — scopes are optional and ignored for bump purposes, e.g. both
+`feat:` and `feat(hooks):` count as minor.
+
+If more than one commit landed since the last release, the **highest** bump
+wins (a `fix:` and a `feat:` together produce a minor release).
+
+### Why this matters
+
+Once you push to `main`, CI bumps `package.json`, tags, and publishes to npm
+with **no manual step** — there is no longer a need to run `./release.sh
+minor` or `major` by hand. Getting the prefix right is what decides whether
+your change ships as a patch, minor, or major release.
+
+### Examples
+
+```
+fix: block "git rm" pattern with word boundary
+feat: add caveman skill hook
+feat(git-guardrails): add configurable pattern list
+feat!: rename CLAUDE_SETTINGS to CLAUDE_HOOKS_SETTINGS
+
+BREAKING CHANGE: existing installs must re-export the env var under the new name
+```

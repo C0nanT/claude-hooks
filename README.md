@@ -63,24 +63,23 @@ No `npm install` — zero runtime dependencies beyond Node ≥18 and `jq`.
 | Where you push | What happens |
 |----------------|--------------|
 | Branch or PR | CI runs `test/run.sh` only — no version bump, no npm publish |
-| `main` | CI runs tests → bumps **patch** → publishes to npm |
+| `main` | CI runs tests → bumps version → publishes to npm |
 
 Work on a branch, open a PR (or push directly if solo), merge to `main` when green.
 
 ### Releasing
 
-**Patch** (bugfix, small improvement) — just merge/push to `main`. CI handles everything:
+Fully automatic — CI decides the bump (patch/minor/major) from your commit
+messages since the last tag and publishes on every push to `main`:
 
 ```
-push to main → tests → 0.1.11 → 0.1.12 → npm publish
+push to main → tests → detect bump from commits → version bump → tag → npm publish
 ```
 
-Do **not** bump `package.json` manually for patch releases.
+**Never bump `package.json` manually.** The bump type is driven entirely by
+commit message prefixes — see [CONTRIBUTING.md](CONTRIBUTING.md) for the
+convention (`fix:` → patch, `feat:` → minor, `feat!:`/`BREAKING CHANGE` →
+major). `./release.sh` still exists as a manual escape hatch if you ever need
+to force a specific bump, but it's no longer part of the normal flow.
 
-**Minor or major** (new feature, breaking change) — bump locally first, then CI publishes on push:
-
-```bash
-./release.sh minor   # or major — working tree must be clean
-```
-
-The script bumps `package.json`, commits, tags `vX.Y.Z`, and pushes `main` + tags. Requires `NPM_TOKEN` in GitHub Actions secrets.
+Requires `NPM_TOKEN` in GitHub Actions secrets.

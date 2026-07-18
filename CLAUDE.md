@@ -40,32 +40,33 @@ See also `README.md` → **Development**.
 ### Day-to-day
 
 - Branch/PR: push freely — CI only runs `test/run.sh` (`.github/workflows/test.yml`).
-- `main`: every push triggers release pipeline (`.github/workflows/release.yml`).
+- `main`: every push triggers release pipeline (`.github/workflows/release.yml`), which infers the bump type (patch/minor/major) from commit messages since the last tag and publishes automatically. **Never bump `package.json` manually.**
 
-### Patch (default)
+### Commit message convention drives the bump
 
-Bugfix or small improvement — **do not** bump `package.json` locally. Merge to `main`:
+See `CONTRIBUTING.md` for the full convention. Summary: CI scans `git log <last-tag>..HEAD` subjects/bodies:
+
+| Commit prefix | Bump |
+|---|---|
+| `fix:` or no prefix | patch |
+| `feat:` | minor |
+| `feat!:` / `fix!:` / any `!:` after the type, or a `BREAKING CHANGE` footer | major |
+
+If multiple qualifying commits landed since the last tag, the highest bump wins.
 
 ```
 git push origin main
-# → tests → patch bump (0.1.11 → 0.1.12) → commit "[skip ci]" → tag → npm publish
+# → tests → detect bump from commits → npm version <bump> → commit "[skip ci]" → tag → npm publish
 ```
 
-### Minor / major
-
-New feature or breaking change — CI always patches; bump semver manually first:
-
-```bash
-./release.sh minor   # or major — requires clean working tree
-# npm version → commit → tag vX.Y.Z → push main --tags → CI publishes
-```
+`./release.sh [patch|minor|major]` still exists as a manual override (requires clean working tree) but is no longer needed for normal releases.
 
 ### CI pipelines
 
 | File | Runs when | Does |
 |---|---|---|
 | `test.yml` | Push to any branch except `main`, PRs | `test/run.sh` |
-| `release.yml` | Push to `main` | Tests → patch bump → `npm publish` |
+| `release.yml` | Push to `main` | Tests → detect bump from commits → version bump → `npm publish` |
 
 CI bump commits use `[skip ci]` to avoid infinite loops. Requires `NPM_TOKEN` in GitHub Actions secrets.
 
