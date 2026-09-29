@@ -189,6 +189,27 @@ assert_allowed "cat .env.example"       "$(make_input Bash command 'cat .env.exa
 assert_allowed "echo .env.example path" "$(make_input Bash command 'echo .env.example')"
 assert_allowed "grep in .env.example"   "$(make_input Bash command 'grep KEY .env.example')"
 
+# ── git-guardrails script ────────────────────────────────────────────────────
+BLOCK_SCRIPT="lib/git-guardrails/block-dangerous-git.sh"
+
+section "git-guardrails: blocks dangerous commands"
+assert_blocked "git push"                    "$(make_input Bash command 'git push origin main')"
+assert_blocked "git commit"                  "$(make_input Bash command 'git commit -m x')"
+assert_blocked "git reset --hard"            "$(make_input Bash command 'git reset --hard HEAD~1')"
+assert_blocked "git rm"                      "$(make_input Bash command 'git rm -rf file')"
+
+section "git-guardrails: blocks dangerous commands with global options"
+assert_blocked "git -c k=v commit"           "$(make_input Bash command 'git -c user.email=x -c user.name=y commit -m x')"
+assert_blocked "git -C dir push"             "$(make_input Bash command 'git -C /tmp push origin main')"
+assert_blocked "git --no-pager reset --hard" "$(make_input Bash command 'git --no-pager reset --hard HEAD~1')"
+assert_blocked "git --git-dir push"          "$(make_input Bash command 'git --git-dir=/repo/.git push')"
+
+section "git-guardrails: allows safe commands"
+assert_allowed "git status"        "$(make_input Bash command 'git status')"
+assert_allowed "git -C dir status" "$(make_input Bash command 'git -C /tmp status')"
+assert_allowed "git log"           "$(make_input Bash command 'git --no-pager log')"
+assert_allowed "Unrelated tool"    "$(make_input SessionStart foo bar)"
+
 # ── summary ──────────────────────────────────────────────────────────────────
 echo
 echo "────────────────────────────────"
