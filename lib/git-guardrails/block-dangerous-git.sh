@@ -21,7 +21,6 @@ DANGEROUS_PATTERNS=(
   "${GIT_PREFIX}checkout \."
   "${GIT_PREFIX}restore \."
   "${GIT_PREFIX}rm"
-  "${GIT_PREFIX}mv"
   "push --force"
   "reset --hard"
 )
