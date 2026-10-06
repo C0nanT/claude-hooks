@@ -13,12 +13,12 @@
   - por último usa `aplay` com o som padrão do ALSA.
 - Os comandos rodam por `$.process`, e uma falha nunca interrompe a sessão.
 - Dois disparos na mesma sessão dentro de 2 segundos tocam uma vez só. O controle fica em memória, sem arquivos em disco.
-- `/hooks sound off` cala só este som.
+- `/conan-mods sound off` cala só este som.
 
 **Seams:**
 - Plugin: `claude plugin test`, disparando o fim de tarefa com ambiente WSL e Ubuntu simulados e conferindo os comandos chamados.
 
-**Blocked by:** 06 (Plugin: `/hooks` liga/desliga com persistência)
+**Blocked by:** 06 (Plugin: `/conan-mods` liga/desliga com persistência)
 
 Status: ready-for-agent
 

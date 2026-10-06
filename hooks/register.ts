@@ -1,7 +1,7 @@
 import type { EngineInterface, Register } from 'claude-code'
 import { BASH_BLOCKED_MESSAGE, bashReferencesEnv, DOTENV_FILE_TOOLS, fileBlockedMessage, isBlockedEnvPath } from './dotenv-guard-rules'
 import { blockedMessage, matchDangerous } from './git-guard-rules'
-import { listText, offBandText, parseHooksArgs, TOGGLE_NAMES, usageText } from './toggles'
+import { listText, offBandText, parseModsArgs, TOGGLE_NAMES, usageText } from './toggles'
 import type { ToggleName, Toggles } from './toggles'
 
 const toggles = { plugin: 'conan-mods', key: 'toggles' } as const
@@ -28,12 +28,12 @@ async function setToggle($: EngineInterface, name: ToggleName, isOn: boolean): P
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'hooks', description: 'List or switch the plugin functions: /hooks [<name> on|off]' })
+    await $.command.register({ name: 'conan-mods', description: 'List or switch the conan-mods functions', argumentHint: '[<name> on|off]' })
     return next(e)
   })
 
-  on('command.run', { command: 'hooks' }, async ($, e) => {
-    const command = parseHooksArgs(e.args)
+  on('command.run', { command: 'conan-mods' }, async ($, e) => {
+    const command = parseModsArgs(e.args)
     if (command.kind === 'usage') return { text: usageText() }
     if (command.kind === 'list') return { text: listText(await readToggles($)) }
     await setToggle($, command.name, command.isOn)

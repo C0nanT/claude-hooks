@@ -13,7 +13,7 @@
   - cria a tag;
   - **não publica no npm**.
 - O CI de branch e o pre-push rodam `claude plugin validate` e `claude plugin test`, e o CI instala o Claude Code para isso.
-- README e CLAUDE.md descrevem o plugin, a instalação, a atualização (`claude plugin update` + `/reload-plugins`), o `/hooks`, a faixa e o desenvolvimento local.
+- README e CLAUDE.md descrevem o plugin, a instalação, a atualização (`claude plugin update` + `/reload-plugins`), o `/conan-mods`, a faixa e o desenvolvimento local.
 - O merge do branch `mods` na `main` usa um commit `feat!:`, levando a versão a `1.0.0`.
 
 **Seams:**

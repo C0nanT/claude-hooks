@@ -24,14 +24,14 @@ test('with git-guard and sound off, the band lists them in fixed order', async (
   await ui.unmount()
 })
 
-test('the next draw after /hooks reflects the change', async ($, on) => {
+test('the next draw after /conan-mods reflects the change', async ($, on) => {
   mock.store(on)
   on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', children: [DEFAULT] }))
-  await $.command.run({ command: 'hooks', args: 'caveman off' })
+  await $.command.run({ command: 'conan-mods', args: 'caveman off' })
   let ui = await band($)
   expect(await ui.find({ type: 'Text', text: '⚠ off: caveman' })).toBeDefined()
   await ui.unmount()
-  await $.command.run({ command: 'hooks', args: 'caveman on' })
+  await $.command.run({ command: 'conan-mods', args: 'caveman on' })
   ui = await band($)
   expect(await ui.find({ type: 'Text', text: /off:/ })).toBeUndefined()
   await ui.unmount()

@@ -32,7 +32,7 @@ O plugin entrega quatro funções:
 
 O `notify-attention` deixa de existir.
 
-Cada função pode ser ligada e desligada com `/hooks <nome> on|off`. A escolha vale para todas as sessões daquele PC. `/hooks` sozinho mostra o estado de tudo. Enquanto algo estiver desligado, uma faixa de uma linha acima do prompt mostra o que está desligado.
+Cada função pode ser ligada e desligada com `/conan-mods <nome> on|off`. A escolha vale para todas as sessões daquele PC. `/conan-mods` sozinho mostra o estado de tudo. Enquanto algo estiver desligado, uma faixa de uma linha acima do prompt mostra o que está desligado.
 
 A migração sai em dois lançamentos:
 
@@ -57,8 +57,8 @@ Em cada PC a troca é: limpeza com `--dry-run`, limpeza real, `/plugin install`.
 7. Como usuário, quero que o modo caveman esteja ativo desde o início de toda sessão, para economizar tokens sem digitar `/caveman`.
 8. Como usuário, quero que o plugin leia a skill caveman instalada pelo repo de skills, para que exista uma única fonte da skill, compartilhada com os outros agentes.
 9. Como usuário, quero um aviso uma vez por sessão quando a skill caveman não estiver instalada, com o comando para instalá-la, para não ficar sem a função sem saber.
-10. Como usuário, quero desligar a caveman com `/hooks caveman off` e que isso valha na hora, sem reiniciar a sessão.
-11. Como usuário, quero religar a caveman com `/hooks caveman on` e que isso valha na hora.
+10. Como usuário, quero desligar a caveman com `/conan-mods caveman off` e que isso valha na hora, sem reiniciar a sessão.
+11. Como usuário, quero religar a caveman com `/conan-mods caveman on` e que isso valha na hora.
 
 ### git-guard
 
@@ -66,7 +66,7 @@ Em cada PC a troca é: limpeza com `--dry-run`, limpeza real, `/plugin install`.
 13. Como usuário, quero que o bloqueio funcione mesmo com opções globais do git antes do subcomando (`-c k=v`, `-C dir`, `--git-dir=`, `--work-tree=`, `--namespace=`, `--no-pager`, `--literal-pathspecs`), para que o bloqueio não seja contornado por acidente.
 14. Como usuário, quero que `git commit`, `git status`, `git diff`, `git log` e outros comandos seguros continuem liberados, para o Claude seguir trabalhando normalmente.
 15. Como usuário, quero que a mensagem de bloqueio diga ao Claude qual comando e qual padrão bateram, para ele entender por que foi bloqueado.
-16. Como usuário, quero poder desligar o git-guard com `/hooks git-guard off` quando eu decidir conscientemente, para casos pontuais.
+16. Como usuário, quero poder desligar o git-guard com `/conan-mods git-guard off` quando eu decidir conscientemente, para casos pontuais.
 
 ### dotenv-guard
 
@@ -74,7 +74,7 @@ Em cada PC a troca é: limpeza com `--dry-run`, limpeza real, `/plugin install`.
 18. Como usuário, quero que comandos Bash que mencionem um arquivo `.env` também sejam bloqueados, para que o bloqueio não seja contornado pelo terminal.
 19. Como usuário, quero que `.env.example`, `.env.sample`, `.env.dist` e `.env.template` continuem liberados, para o Claude entender a configuração sem ver segredos.
 20. Como usuário, quero que a mensagem de bloqueio sugira usar `.env.example`, para o Claude ter um caminho alternativo.
-21. Como usuário, quero poder desligar o dotenv-guard com `/hooks dotenv-guard off`.
+21. Como usuário, quero poder desligar o dotenv-guard com `/conan-mods dotenv-guard off`.
 
 ### sound
 
@@ -83,14 +83,14 @@ Em cada PC a troca é: limpeza com `--dry-run`, limpeza real, `/plugin install`.
 24. Como usuário no WSL, quero que o som toque no Windows como hoje (bipes via PowerShell), porque o áudio do Linux pode não chegar ao Windows.
 25. Como usuário, não quero notificação visual nem aviso dentro do terminal ao terminar, só o som.
 26. Como usuário, quero que o som não toque duas vezes para o mesmo fim de tarefa.
-27. Como usuário, quero desligar o som com `/hooks sound off`, e que isso cale apenas o som deste plugin, sem afetar outros sons do Claude Code.
+27. Como usuário, quero desligar o som com `/conan-mods sound off`, e que isso cale apenas o som deste plugin, sem afetar outros sons do Claude Code.
 
 ### Ligar, desligar e indicador
 
-28. Como usuário, quero rodar `/hooks` sem argumentos e ver o estado de todas as funções, para saber o que está ativo.
+28. Como usuário, quero rodar `/conan-mods` sem argumentos e ver o estado de todas as funções, para saber o que está ativo.
 29. Como usuário, quero que a escolha de ligar ou desligar persista entre sessões no mesmo PC, para não ter que repetir.
 30. Como usuário, quero que tudo comece ligado em uma instalação nova, para estar protegido por padrão.
-31. Como usuário, quero uma resposta clara quando digitar um nome ou valor inválido em `/hooks`, com a lista de nomes válidos.
+31. Como usuário, quero uma resposta clara quando digitar um nome ou valor inválido em `/conan-mods`, com a lista de nomes válidos.
 32. Como usuário, quero ver uma faixa acima do prompt enquanto qualquer função estiver desligada, por exemplo `⚠ off: git-guard · caveman`, para não esquecer algo desligado.
 33. Como usuário, quero que essa faixa suma quando tudo estiver ligado, para não ocupar espaço à toa.
 34. Como usuário, quero que a faixa seja atualizada na hora em que eu ligar ou desligar algo.
@@ -115,7 +115,7 @@ Em cada PC a troca é: limpeza com `--dry-run`, limpeza real, `/plugin install`.
 
 48. Como mantenedor, quero testar o plugin com `claude plugin test` no CI e no pre-push, para não publicar quebrado.
 49. Como mantenedor, quero que os casos de teste atuais de `protect-dotenv` e `git-guardrails` virem testes do plugin, para não perder nenhuma regra na migração.
-50. Como mantenedor, quero o README e o CLAUDE.md descrevendo o plugin, a instalação, `/hooks` e o desenvolvimento local, para eu ou um agente conseguirmos manter.
+50. Como mantenedor, quero o README e o CLAUDE.md descrevendo o plugin, a instalação, `/conan-mods` e o desenvolvimento local, para eu ou um agente conseguirmos manter.
 
 ## Implementation Decisions
 
@@ -123,14 +123,14 @@ Em cada PC a troca é: limpeza com `--dry-run`, limpeza real, `/plugin install`.
 
 - O repo vira um marketplace com uma única entrada, o plugin `conan-mods`, cuja `source` é o próprio repo.
 - Um único hooks module registra todas as funções. Cada função fica em um módulo interno próprio (caveman, git-guard, dotenv-guard, sound, toggles e indicador), e o registro só liga os eventos a esses módulos.
-- A lógica de decisão (bater um comando contra as regras do git, decidir se um caminho é `.env` protegido, interpretar os argumentos de `/hooks`) fica em funções puras, chamadas pelos hooks.
+- A lógica de decisão (bater um comando contra as regras do git, decidir se um caminho é `.env` protegido, interpretar os argumentos de `/conan-mods`) fica em funções puras, chamadas pelos hooks.
 - O plugin tem contrato de tipos para os valores que guarda em estado.
 - Some: o CLI npm (no Release B), `install.sh`, `list.sh`, a biblioteca de mutação de `settings.json`, as definições `hooks/*.json`, as pastas de scripts shell, o protocolo de marcador `claude-hook:` e o suporte a `CLAUDE_SETTINGS`.
 
 ### Toggles
 
 - Nomes fixos: `caveman`, `git-guard`, `dotenv-guard`, `sound`.
-- Um único comando `/hooks` registrado na abertura da sessão:
+- Um único comando `/conan-mods` registrado na abertura da sessão:
   - sem argumento, lista cada nome com `on` ou `off`;
   - `<nome> on|off` muda o estado e responde com o novo estado;
   - qualquer outra entrada responde com o uso e os nomes válidos.
@@ -202,11 +202,11 @@ Em cada PC a troca é: limpeza com `--dry-run`, limpeza real, `/plugin install`.
 
 ## Testing Decisions
 
-- Um bom teste dispara um evento como o Claude Code dispararia e confere só o resultado visível: bloqueou ou deixou passar e com qual mensagem, chamou ou não o comando de som e com quais argumentos, a seção da caveman entrou ou não, o texto de resposta do `/hooks`, o que a faixa desenha. Nada de testar funções internas ou formato de estado.
+- Um bom teste dispara um evento como o Claude Code dispararia e confere só o resultado visível: bloqueou ou deixou passar e com qual mensagem, chamou ou não o comando de som e com quais argumentos, a seção da caveman entrou ou não, o texto de resposta do `/conan-mods`, o que a faixa desenha. Nada de testar funções internas ou formato de estado.
 
 **Pontos de teste combinados:**
 
-- **Plugin:** `claude plugin test` sobre o plugin inteiro. Cada teste dispara chamada de ferramenta, fim de tarefa, montagem de instruções, `/hooks` ou desenho da faixa, e confere o resultado.
+- **Plugin:** `claude plugin test` sobre o plugin inteiro. Cada teste dispara chamada de ferramenta, fim de tarefa, montagem de instruções, `/conan-mods` ou desenho da faixa, e confere o resultado.
 - **Limpeza (Release A):** `node bin/claude-hooks.js uninstall [--dry-run]` (e `install`, `list`) com `HOME` apontando para uma pasta temporária com restos falsos: os 5 hooks, o `statusline-reset`, `hooks-lib`, arquivos de controle, a geração anterior e um hook alheio sem marca. O comando `claude` é trocado por um falso no `PATH` que registra as chamadas. Os testes conferem o que sumiu, o que ficou, o relatório e as chamadas registradas.
 
 **Módulos testados:**
@@ -223,13 +223,13 @@ Em cada PC a troca é: limpeza com `--dry-run`, limpeza real, `/plugin install`.
   - Ubuntu → chama `paplay` e cai para o alternativo se falhar;
   - desligado → não chama nada;
   - dois disparos dentro de 2 segundos → uma chamada só.
-- **`/hooks`:**
+- **`/conan-mods`:**
   - lista;
   - liga e desliga cada nome;
   - entrada inválida;
   - o estado persiste numa nova sessão;
   - padrão é ligado.
-- **Faixa:** nada com tudo ligado, nomes certos e na ordem certa com itens desligados, atualiza depois do `/hooks`.
+- **Faixa:** nada com tudo ligado, nomes certos e na ordem certa com itens desligados, atualiza depois do `/conan-mods`.
 - **Limpeza:**
   - remove os 5 pelo nome e preserva `statusline-reset` e hooks alheios;
   - poda grupos e eventos vazios;

@@ -10,13 +10,13 @@
 - Se o arquivo não existir:
   - a seção não entra;
   - aparece um aviso **uma vez por sessão**: "caveman: skill não encontrada, rode `npx skills@latest add C0nanT/skills`".
-- `/hooks caveman off` tira a seção na montagem seguinte, e `on` a coloca de volta, sem reiniciar a sessão.
+- `/conan-mods caveman off` tira a seção na montagem seguinte, e `on` a coloca de volta, sem reiniciar a sessão.
 - O plugin não carrega cópia própria da skill.
 
 **Seams:**
-- Plugin: `claude plugin test`, disparando a montagem das instruções com e sem a skill presente, e `/hooks`.
+- Plugin: `claude plugin test`, disparando a montagem das instruções com e sem a skill presente, e `/conan-mods`.
 
-**Blocked by:** 06 (Plugin: `/hooks` liga/desliga com persistência)
+**Blocked by:** 06 (Plugin: `/conan-mods` liga/desliga com persistência)
 
 Status: ready-for-agent
 

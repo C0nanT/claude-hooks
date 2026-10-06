@@ -60,14 +60,14 @@ test('allows: a tool outside the list (Grep)', async ($, on) => {
   expect((await $.tool.call({ tool: 'Grep', file_path: '/project/.env' })).text).toBe('ran')
 })
 
-test('/hooks dotenv-guard off lets everything pass, on blocks again', async ($, on) => {
+test('/conan-mods dotenv-guard off lets everything pass, on blocks again', async ($, on) => {
   mock.store(on)
   on('tool.call', { tool: 'Read' }, () => ({ result: 'ran', text: 'ran' }))
   on('tool.call', { tool: 'Bash' }, () => ({ result: 'ran', text: 'ran' }))
-  await $.command.run({ command: 'hooks', args: 'dotenv-guard off' })
+  await $.command.run({ command: 'conan-mods', args: 'dotenv-guard off' })
   expect((await $.tool.call({ tool: 'Read', file_path: '/p/.env' })).text).toBe('ran')
   expect((await $.tool.call({ tool: 'Bash', command: 'cat .env' })).text).toBe('ran')
-  await $.command.run({ command: 'hooks', args: 'dotenv-guard on' })
+  await $.command.run({ command: 'conan-mods', args: 'dotenv-guard on' })
   expect((await $.tool.call({ tool: 'Read', file_path: '/p/.env' })).deny).toContain('is blocked')
   expect((await $.tool.call({ tool: 'Bash', command: 'cat .env' })).deny).toContain('references a .env')
 })

@@ -2,13 +2,13 @@ export const TOGGLE_NAMES = ['caveman', 'git-guard', 'dotenv-guard', 'sound'] as
 export type ToggleName = (typeof TOGGLE_NAMES)[number]
 export type Toggles = Record<ToggleName, boolean>
 
-export type HooksCommand =
+export type ModsCommand =
   | { kind: 'list' }
   | { kind: 'set'; name: ToggleName; isOn: boolean }
   | { kind: 'usage' }
 
-/** Interprets the argument text of `/hooks`. */
-export function parseHooksArgs(args: string): HooksCommand {
+/** Interprets the argument text of `/conan-mods`. */
+export function parseModsArgs(args: string): ModsCommand {
   const words = args.trim().split(/\s+/).filter(Boolean)
   if (words.length === 0) return { kind: 'list' }
   const [name, value, ...rest] = words
@@ -18,7 +18,7 @@ export function parseHooksArgs(args: string): HooksCommand {
 }
 
 export function usageText(): string {
-  return `Usage: /hooks [<name> on|off]\nValid names: ${TOGGLE_NAMES.join(', ')}`
+  return `Usage: /conan-mods [<name> on|off]\nValid names: ${TOGGLE_NAMES.join(', ')}`
 }
 
 export function listText(toggles: Toggles): string {

@@ -11,17 +11,17 @@
   - as variantes seguras são removidas do comando;
   - se ainda sobrar `.env` seguido de fim de texto ou de algo que não seja letra, `_` ou `-`, é negado.
 - As mensagens de bloqueio são as atuais.
-- `/hooks dotenv-guard off` deixa tudo passar.
+- `/conan-mods dotenv-guard off` deixa tudo passar.
 - A decisão fica em funções puras.
 
 **Seams:**
-- Plugin: `claude plugin test`, disparando chamadas de Read/Edit/Write/MultiEdit/Bash e `/hooks`.
+- Plugin: `claude plugin test`, disparando chamadas de Read/Edit/Write/MultiEdit/Bash e `/conan-mods`.
 
-**Blocked by:** 06 (Plugin: `/hooks` liga/desliga com persistência)
+**Blocked by:** 06 (Plugin: `/conan-mods` liga/desliga com persistência)
 
 Status: ready-for-human
 
 - [x] Todos os casos atuais das seções "protect-dotenv: blocks .env reads", "allows safe variants" e "bash command detection" foram portados e passam.
 - [x] As mensagens de bloqueio são idênticas às atuais.
-- [x] Desligado pelo `/hooks`, nada é bloqueado. Religado, volta a bloquear.
+- [x] Desligado pelo `/conan-mods`, nada é bloqueado. Religado, volta a bloquear.
 - [x] Ferramentas fora da lista (por exemplo Grep) não são afetadas, como hoje.
