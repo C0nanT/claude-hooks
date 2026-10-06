@@ -26,7 +26,23 @@ async function setToggle($: EngineInterface, name: ToggleName, isOn: boolean): P
   $.ui.invalidate('ui.render')
 }
 
+const CAVEMAN_WARNING = 'caveman: skill não encontrada, rode `npx skills@latest add C0nanT/skills`'
+
+/** The skill's text, or undefined when it cannot be read (missing, unreadable or empty). */
+async function readCavemanSkill($: EngineInterface): Promise<string | undefined> {
+  try {
+    const home = await $.env.get('HOME')
+    if (home === undefined || home === '') return undefined
+    const text = await $.fs.read(`${home}/.claude/skills/caveman/SKILL.md`)
+    return text.trim() === '' ? undefined : text
+  } catch {
+    return undefined
+  }
+}
+
 export const register: Register = on => {
+  let isCavemanWarned = false
+
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'conan-mods', description: 'List or switch the conan-mods functions', argumentHint: '[<name> on|off]' })
     return next(e)
@@ -63,4 +79,18 @@ export const register: Register = on => {
     if (!(await readToggles($))['dotenv-guard']) return next(e)
     return bashReferencesEnv(e.command) ? { deny: BASH_BLOCKED_MESSAGE } : next(e)
   }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: dotenv-guard failed, command blocked.` }))
+
+  on('prompt.compose', async ($, e, next) => {
+    const result = await next(e)
+    if (!(await readToggles($)).caveman) return result
+    const text = await readCavemanSkill($)
+    if (text === undefined) {
+      if (!isCavemanWarned) {
+        isCavemanWarned = true
+        $.ui.toast(CAVEMAN_WARNING, { timeoutMs: 10000 })
+      }
+      return result
+    }
+    return { sections: [...result.sections, { id: 'conan-mods:caveman', text, scope: 'session' }] }
+  }).catch(($, e, next) => next(e))
 }

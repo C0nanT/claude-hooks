@@ -18,9 +18,9 @@
 
 **Blocked by:** 06 (Plugin: `/conan-mods` liga/desliga com persistência)
 
-Status: ready-for-agent
+Status: ready-for-human
 
-- [ ] Com a skill presente e ligada, a seção contém o texto da skill.
-- [ ] Desligada, a seção não entra. Religada, volta na montagem seguinte.
-- [ ] Sem a skill, a seção não entra e o aviso aparece uma única vez na sessão, mesmo com várias montagens.
-- [ ] Um erro de leitura não quebra a sessão.
+- [x] Com a skill presente e ligada, a seção contém o texto da skill.
+- [x] Desligada, a seção não entra. Religada, volta na montagem seguinte.
+- [x] Sem a skill, a seção não entra e o aviso aparece uma única vez na sessão, mesmo com várias montagens.
+- [x] Um erro de leitura não quebra a sessão.
