@@ -3,39 +3,22 @@
 # All functions read JSON from stdin and write JSON to stdout — no file I/O.
 # Callers handle reading the settings file and writing the result back.
 
-# upsert_hook <event> <matcher> <cmd> <marker>
-# Removes any existing hook carrying <marker> from <event>, then appends a fresh group.
-upsert_hook() {
-  local event="$1" matcher="$2" cmd="$3" marker="$4"
-  jq \
-    --arg ev     "$event"   \
-    --arg matcher "$matcher" \
-    --arg cmd    "$cmd"     \
-    --arg m      "$marker"  '
-    (if $matcher == ""
-       then {hooks: [{type: "command", command: $cmd}]}
-       else {matcher: $matcher, hooks: [{type: "command", command: $cmd}]}
-     end) as $group
-    | .hooks[$ev] = [ ((.hooks[$ev] // [])[])
-        | .hooks = [ .hooks[]
-            | select((.command // "") | split("\n")[0] | startswith("# " + $m) | not) ]
-        | select((.hooks | length) > 0) ]
-    | .hooks[$ev] += [ $group ]
-  '
-}
+# A hook "carries" a marker when the first line of its command, with trailing
+# whitespace trimmed, is exactly "# <marker>" (so "claude-hook:caveman" never
+# matches "claude-hook:caveman-v2").
+_JQ_MARKER_DEF='def has_marker($m): ((.command // "") | split("\n")[0] | sub("\\s+$"; "")) == ("# " + $m);'
 
 # remove_hook <marker>
-# Removes every hook whose first command line starts with "# <marker>", across all events.
+# Removes every hook carrying exactly <marker>, across all events.
 # Prunes empty groups, events, and the hooks object itself.
 remove_hook() {
   local marker="$1"
-  jq --arg m "$marker" '
+  jq --arg m "$marker" "$_JQ_MARKER_DEF"'
     if .hooks then
       .hooks |= (
         to_entries
         | map(.value |= [ .[]
-            | .hooks = [ .hooks[]
-                | select((.command // "") | split("\n")[0] | startswith("# " + $m) | not) ]
+            | .hooks = [ .hooks[] | select(has_marker($m) | not) ]
             | select((.hooks | length) > 0) ])
         | map(select((.value | length) > 0))
         | from_entries
@@ -46,11 +29,20 @@ remove_hook() {
 }
 
 # hook_present <marker>
-# Exits 0 if any hook whose first command line starts with "# <marker>" exists in stdin JSON.
+# Exits 0 if any hook carrying exactly <marker> exists in stdin JSON.
 hook_present() {
   local marker="$1"
-  jq -e --arg m "$marker" '
-    .hooks // {} | to_entries[] | .value[] | .hooks[]
-    | select((.command // "") | split("\n")[0] | startswith("# " + $m))
+  jq -e --arg m "$marker" "$_JQ_MARKER_DEF"'
+    [ .hooks // {} | to_entries[] | .value[] | .hooks[] | select(has_marker($m)) ] | length > 0
   ' >/dev/null 2>&1
+}
+
+# marked_commands
+# Prints the marker line of every command whose first line starts with "# claude-hook:".
+marked_commands() {
+  jq -r '
+    .hooks // {} | to_entries[] | .value[]? | .hooks[]?
+    | (.command // "") | split("\n")[0] | select(startswith("# claude-hook:"))
+    | ltrimstr("# ")
+  '
 }

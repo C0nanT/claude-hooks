@@ -14,15 +14,15 @@ const SCRIPTS = {
 const [,, cmd, ...args] = process.argv;
 
 if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
-  console.log(`claude-hooks — portable Claude Code hook manager
+  console.log(`claude-hooks — cleanup tool for the old claude-hooks settings.json hooks
 
 Usage:
-  npx @c0nant/claude-hooks install   [hook-name ...]   Install all hooks (or specific ones)
-  npx @c0nant/claude-hooks uninstall [hook-name ...]   Remove all hooks (or specific ones)
-  npx @c0nant/claude-hooks list                        Show installed hooks
+  npx @c0nant/claude-hooks uninstall [--dry-run]   Remove the 5 old hooks from ~/.claude/settings.json
+  npx @c0nant/claude-hooks list                    Show what uninstall would remove
+  npx @c0nant/claude-hooks install                 No longer supported (prints the plugin command)
 
-By default manages ~/.claude/settings.json (global).
-Set CLAUDE_SETTINGS env var to target a different file.
+Always targets ~/.claude/settings.json (resolved from HOME).
+Replacement: /plugin install conan-mods --marketplace C0nanT/claude-hooks
 `);
   process.exit(0);
 }

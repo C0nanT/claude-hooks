@@ -1,23 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# List the hooks this tool has installed in the settings file.
+# List what 'uninstall' would remove from ~/.claude/settings.json.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
+# shellcheck source=lib/settings.sh
+source "$SCRIPT_DIR/lib/settings.sh"
 
 require_jq
-[ -f "$SETTINGS_FILE" ] || { echo "no settings file: $SETTINGS_FILE"; exit 0; }
+[ -f "$SETTINGS_FILE" ] || { echo "no settings file: $SETTINGS_FILE (nothing to remove)"; exit 0; }
+require_valid_settings
 
-echo "Hooks installed by this tool in $SETTINGS_FILE:"
-jq -r --arg ns "$HOOK_NS" '
-  (.hooks // {}) | to_entries[] as $e
-  | $e.value[]?
-  | .matcher as $matcher
-  | .hooks[]?
-  | (.command // "") as $c
-  | select($c | split("\n")[0] | startswith("# " + $ns))
-  | ($c | split("\n")[0] | ltrimstr("# ")) as $marker
-  | "  - \($marker)  [\($e.key)\(if $matcher then " matcher=" + $matcher else "" end)]"
-' "$SETTINGS_FILE" || true
+echo "Hooks in $SETTINGS_FILE that 'uninstall' would remove:"
+found=0
+for name in "${OWN_HOOKS[@]}"; do
+  if hook_present "${HOOK_NS}${name}" < "$SETTINGS_FILE"; then
+    echo "  - ${HOOK_NS}${name}"
+    found=1
+  fi
+done
+[ "$found" -eq 1 ] || echo "  (none)"

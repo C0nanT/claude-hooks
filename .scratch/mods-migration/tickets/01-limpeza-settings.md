@@ -20,14 +20,14 @@
 
 **Blocked by:** None (can start immediately)
 
-Status: ready-for-agent
+Status: ready-for-human
 
-- [ ] `uninstall` remove os 5 hooks pelo nome e preserva `statusline-reset` e hooks sem marca.
-- [ ] Grupos, eventos e `hooks` vazios são podados, e o resto do `settings.json` fica igual.
-- [ ] O relatório lista removidos, os que não existiam e os que ainda têm a marca `claude-hook:`.
-- [ ] `--dry-run` não altera o arquivo e imprime o mesmo relatório como "seria removido".
-- [ ] A segunda execução não muda nada e não dá erro.
-- [ ] Sem `settings.json`, a limpeza termina sem erro e relata isso.
-- [ ] `install` sai com código diferente de zero e mostra o comando `/plugin install` novo.
-- [ ] `list` mostra o que seria removido.
-- [ ] Os testes de instalação do `test/run.sh` são trocados por testes desses comportamentos.
+- [x] `uninstall` remove os 5 hooks pelo nome e preserva `statusline-reset` e hooks sem marca.
+- [x] Grupos, eventos e `hooks` vazios são podados, e o resto do `settings.json` fica igual.
+- [x] O relatório lista removidos, os que não existiam e os que ainda têm a marca `claude-hook:`.
+- [x] `--dry-run` não altera o arquivo e imprime o mesmo relatório como "seria removido".
+- [x] A segunda execução não muda nada e não dá erro.
+- [x] Sem `settings.json`, a limpeza termina sem erro e relata isso.
+- [x] `install` sai com código diferente de zero e mostra o comando `/plugin install` novo.
+- [x] `list` mostra o que seria removido.
+- [x] Os testes de instalação do `test/run.sh` são trocados por testes desses comportamentos.

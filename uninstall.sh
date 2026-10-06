@@ -1,76 +1,73 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Remove Claude Code hooks installed by this tool from the settings file.
+# Remove the 5 hooks this project used to install from ~/.claude/settings.json.
 #
-#   ./uninstall.sh            # remove ALL hooks installed by this tool
-#   ./uninstall.sh block-rm   # remove only the block-rm hook
+#   ./uninstall.sh             # remove them and print a report
+#   ./uninstall.sh --dry-run   # print the same report, write nothing
 #
-# Surgical: only touches hooks carrying this tool's "claude-hook:" marker;
-# anything else in your settings.json is left untouched. Emptied groups,
-# events, and the hooks object are pruned so nothing dangling is left behind.
+# Each hook is matched by its exact "claude-hook:<name>" marker. Hooks from
+# other projects (even with a "claude-hook:" marker) and unmarked hooks are
+# left untouched. Emptied groups, events and the hooks object are pruned.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
 # shellcheck source=lib/settings.sh
 source "$SCRIPT_DIR/lib/settings.sh"
-HOOKS_DIR="$SCRIPT_DIR/hooks"
+
+dry_run=false
+for a in "$@"; do
+  case "$a" in
+    --dry-run) dry_run=true ;;
+    *) die "unknown argument: $a (usage: uninstall [--dry-run])" ;;
+  esac
+done
 
 require_jq
-[ -f "$SETTINGS_FILE" ] || { echo "nothing to do: $SETTINGS_FILE does not exist"; exit 0; }
-ensure_settings
 
-remove_marker() {
-  local marker="$1"
-  remove_hook "$marker" < "$SETTINGS_FILE" | write_settings
+print_next_step() {
+  echo
+  echo "Next: install the plugin with"
+  echo "  $PLUGIN_INSTALL_CMD"
 }
 
-cleanup_bundled_scripts() {
-  local -A seen
-  shopt -s nullglob
-  local files=("$HOOKS_DIR"/*.json)
-  shopt -u nullglob
+if [ ! -f "$SETTINGS_FILE" ]; then
+  echo "$SETTINGS_FILE not found: nothing to clean"
+  print_next_step
+  exit 0
+fi
+require_valid_settings
 
-  for f in "${files[@]}"; do
-    local sd; sd="$(jq -r '.scripts_dir // ""' "$f")"
-    [[ -z "$sd" ]] && continue
-    local dest; dest="$(basename "$sd")"
-    [[ -n "${seen[$dest]+_}" ]] && continue
-    seen[$dest]=1
+current="$(cat "$SETTINGS_FILE")"
+if $dry_run; then
+  echo "Dry run: nothing will be written to $SETTINGS_FILE"
+  found_label="would be removed"
+else
+  found_label="removed"
+fi
 
-    local still_installed=false
-    for g in "${files[@]}"; do
-      local gsd; gsd="$(jq -r '.scripts_dir // ""' "$g")"
-      [[ "$(basename "$gsd")" == "$dest" ]] || continue
-      hook_present "${HOOK_NS}$(basename "$g" .json)" < "$SETTINGS_FILE" \
-        && { still_installed=true; break; }
-    done
-    $still_installed || rm -rf "$HOME/.claude/hooks-lib/$dest"
-  done
-}
-
-main() {
-  local before after
-  before="$(jq -S . "$SETTINGS_FILE")"
-
-  if [ "$#" -gt 0 ]; then
-    local n
-    for n in "$@"; do remove_marker "${HOOK_NS}${n%.json}"; done
-    cleanup_bundled_scripts
+changed=false
+for name in "${OWN_HOOKS[@]}"; do
+  marker="${HOOK_NS}${name}"
+  if printf '%s' "$current" | hook_present "$marker"; then
+    echo "  $found_label: $marker"
+    current="$(printf '%s' "$current" | remove_hook "$marker")"
+    changed=true
   else
-    # No args: remove the whole namespace (every hook this tool ever installed,
-    # including ones whose definition file was since deleted).
-    remove_marker "$HOOK_NS"
-    cleanup_bundled_scripts
+    echo "  does not exist: $marker"
   fi
+done
 
-  after="$(jq -S . "$SETTINGS_FILE")"
-  if [ "$before" = "$after" ]; then
-    echo "no matching hooks found in $SETTINGS_FILE"
-  else
-    echo "removed hooks from $SETTINGS_FILE"
-  fi
-}
+if $changed && ! $dry_run; then
+  printf '%s\n' "$current" | write_settings
+fi
 
-main "$@"
+leftover="$(printf '%s' "$current" | marked_commands)"
+if [ -n "$leftover" ]; then
+  echo
+  echo "Commands that still carry the claude-hook: marker (not touched):"
+  printf '%s\n' "$leftover" | sed 's/^/  - /'
+fi
+
+print_next_step
