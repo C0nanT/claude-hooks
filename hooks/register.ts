@@ -1,7 +1,7 @@
 import type { EngineInterface, Register } from 'claude-code'
 import { BASH_BLOCKED_MESSAGE, bashReferencesEnv, DOTENV_FILE_TOOLS, fileBlockedMessage, isBlockedEnvPath } from './dotenv-guard-rules'
 import { blockedMessage, matchDangerous } from './git-guard-rules'
-import { listText, parseHooksArgs, TOGGLE_NAMES, usageText } from './toggles'
+import { listText, offBandText, parseHooksArgs, TOGGLE_NAMES, usageText } from './toggles'
 import type { ToggleName, Toggles } from './toggles'
 
 const toggles = { plugin: 'conan-mods', key: 'toggles' } as const
@@ -23,6 +23,7 @@ async function setToggle($: EngineInterface, name: ToggleName, isOn: boolean): P
   const current = await readToggles($)
   await $.store.set(name, isOn)
   await $.state.set(toggles, { ...current, [name]: isOn })
+  $.ui.invalidate('ui.render')
 }
 
 export const register: Register = on => {
@@ -37,6 +38,13 @@ export const register: Register = on => {
     if (command.kind === 'list') return { text: listText(await readToggles($)) }
     await setToggle($, command.name, command.isOn)
     return { text: `${command.name}: ${command.isOn ? 'on' : 'off'}` }
+  })
+
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const text = offBandText(await readToggles($))
+    if (text === undefined) return next(e)
+    const { Text } = $.ui.resolve(e)
+    return Text({ children: text })
   })
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {

@@ -18,7 +18,7 @@
 
 Status: ready-for-agent
 
-- [ ] Com tudo ligado, nada é desenhado.
-- [ ] Com `git-guard` e `sound` desligados, mostra `⚠ off: git-guard · sound`, nessa ordem.
-- [ ] Depois de `/hooks <nome> on|off`, o desenho seguinte reflete a mudança.
-- [ ] Testado manualmente num terminal com a linha de status própria ativa: as duas aparecem.
+- [x] Com tudo ligado, nada é desenhado.
+- [x] Com `git-guard` e `sound` desligados, mostra `⚠ off: git-guard · sound`, nessa ordem.
+- [x] Depois de `/hooks <nome> on|off`, o desenho seguinte reflete a mudança.
+- [x] Testado manualmente num terminal com a linha de status própria ativa: as duas aparecem.

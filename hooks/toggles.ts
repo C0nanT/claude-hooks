@@ -24,3 +24,11 @@ export function usageText(): string {
 export function listText(toggles: Toggles): string {
   return TOGGLE_NAMES.map(name => `${name}: ${toggles[name] ? 'on' : 'off'}`).join('\n')
 }
+
+const BAND_ORDER: readonly ToggleName[] = ['git-guard', 'dotenv-guard', 'caveman', 'sound']
+
+/** The band text for the functions that are off, in fixed order; undefined when all are on. */
+export function offBandText(toggles: Toggles): string | undefined {
+  const off = BAND_ORDER.filter(name => !toggles[name])
+  return off.length === 0 ? undefined : `⚠ off: ${off.join(' · ')}`
+}
