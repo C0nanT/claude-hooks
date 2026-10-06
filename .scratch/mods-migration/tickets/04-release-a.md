@@ -22,9 +22,9 @@
 
 Status: ready-for-agent
 
-- [ ] O README descreve os 3 passos da migração e avisa sobre o passo 3.
-- [ ] O CLAUDE.md está coerente com o CLI de limpeza.
-- [ ] `test/run.sh` passa.
+- [x] O README descreve os 3 passos da migração e avisa sobre o passo 3.
+- [x] O CLAUDE.md está coerente com o CLI de limpeza.
+- [x] `test/run.sh` passa.
 - [ ] A versão foi publicada no npm pelo pipeline (confirmar o push com o dono antes).
 - [ ] Rodar `--dry-run` no PC de desenvolvimento e mostrar o relatório ao dono antes da limpeza real.
 - [ ] `npm deprecate` executado com mensagem apontando para o plugin (confirmar com o dono antes).

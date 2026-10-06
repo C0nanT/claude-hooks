@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "==> Removing claude-hooks from settings.json..."
+echo "==> Running the claude-hooks cleanup..."
 bash "$SCRIPT_DIR/uninstall.sh"
 
 echo "==> Removing installed skills..."
@@ -14,5 +14,5 @@ echo ""
 echo "Clean. To reinstall from scratch:"
 echo ""
 echo "  npx skills@latest add C0nanT/skills"
-echo "  npx @c0nant/claude-hooks install"
+echo "  /plugin install conan-mods --marketplace C0nanT/claude-hooks  # inside Claude Code"
 echo ""

@@ -1,51 +1,71 @@
 # claude-hooks
 
-Claude Code hooks companion to [C0nanT/skills](https://github.com/C0nanT/skills). Wires the caveman and git-guardrails hooks into `settings.json` automatically — no hand-editing.
+> **Deprecated.** The hooks now ship as the Claude Code plugin `conan-mods`.
+> This package's last version is only a **cleanup tool**: it removes everything
+> older versions put in `~/.claude/settings.json` and on disk.
 
-## Prerequisites
+## Migrating a PC
 
-The `git-guardrails` hook is self-contained — it bundles its own script, no skills required.
+Run these three steps on every PC that had the old hooks:
 
-The `caveman` hook reads a skill asset at runtime (`~/.claude/skills/caveman/SKILL.md`). If you want it, **install [C0nanT/skills](https://github.com/C0nanT/skills) first** — without it, the caveman hook no-ops:
+1. Preview what the cleanup would remove (writes nothing, never calls `claude`):
 
-```bash
-npx skills@latest add C0nanT/skills
-```
+   ```bash
+   npx @c0nant/claude-hooks@latest uninstall --dry-run
+   ```
 
-Requires `jq`. On Ubuntu/WSL: `sudo apt-get install -y jq`
+2. Run the real cleanup:
 
-## Install
+   ```bash
+   npx @c0nant/claude-hooks@latest uninstall
+   ```
 
-```bash
-npx @c0nant/claude-hooks install
-```
+3. Install the plugin, inside Claude Code:
 
-## Bundled hooks
+   ```
+   /plugin install conan-mods --marketplace C0nanT/claude-hooks
+   ```
 
-| Hook | Event | What it does |
-|------|-------|-------------|
-| `caveman` | `SessionStart` | Injects the caveman ruleset as hidden context — agent starts in token-saving mode every session without typing `/caveman` |
-| `git-guardrails` | `PreToolUse/Bash` | Blocks destructive git commands (`push`, `push --force`, `reset --hard`, `clean -f`, `branch -D`, `checkout .`, `restore .`, `rm`) before execution |
+> **Heads-up:** step 3 only works once the plugin release (Release B) is out on
+> this repo's `main`. Until then the marketplace has no `conan-mods` plugin and
+> the command fails; run steps 1–2 now and step 3 after that release.
 
-The `caveman` hook no-ops gracefully if its skill asset is absent; `git-guardrails` bundles its own script and needs nothing else.
+Requires Node ≥18 and `jq` (Ubuntu/WSL: `sudo apt-get install -y jq`).
+
+## What the cleanup removes
+
+- **`~/.claude/settings.json`:** the 5 hooks this project installed, each by its
+  exact marker (`# claude-hook:caveman`, `git-guardrails`, `protect-dotenv`,
+  `notify-attention`, `notify-done`), plus the previous-generation hooks
+  (`conan-caveman-autostart`, `conan-git-guardrails`, `block-dangerous-git`).
+  Emptied groups and events are pruned; the rest of the file is left intact.
+  Hooks from other projects that share the `claude-hook:` marker (such as
+  `statusline-reset`) are **not** touched.
+- **Script folders:** `git-guardrails`, `notification` and `protect-dotenv` in
+  `~/.claude/hooks-lib/`, and the folder itself if left empty.
+- **Notification control files:** `$XDG_RUNTIME_DIR/claude-notification/`
+  (or `/tmp/claude-notification/`).
+- **Previous-generation scripts:** `conan-git-guardrails.sh` and
+  `block-dangerous-git.sh` in `~/.claude/hooks/`, and the folder if left empty.
+- **Old plugin:** `claude-notification` and its marketplace, via
+  `claude plugin uninstall` / `claude plugin marketplace remove`. If `claude`
+  is not on `PATH` or the plugin is not installed, the report says so and the
+  run continues.
+
+The report lists each item as removed, does not exist or failed, and shows any
+command still carrying a `claude-hook:` marker. Running it again is safe.
 
 ## Commands
 
 ```bash
-npx @c0nant/claude-hooks install              # install all hooks
-npx @c0nant/claude-hooks install git-guardrails  # one hook only
-npx @c0nant/claude-hooks uninstall            # remove all
-npx @c0nant/claude-hooks uninstall caveman    # remove one
-npx @c0nant/claude-hooks list                 # show installed
+npx @c0nant/claude-hooks@latest uninstall --dry-run   # preview the cleanup
+npx @c0nant/claude-hooks@latest uninstall             # run the cleanup
+npx @c0nant/claude-hooks@latest list                  # old hooks still in settings.json
+npx @c0nant/claude-hooks@latest install               # refuses; prints the plugin command
 ```
 
-Installs are idempotent — re-running syncs without duplicating. Uninstall is surgical — only touches what this tool added.
-
-## Project-scoped install
-
-```bash
-CLAUDE_SETTINGS=.claude/settings.json npx @c0nant/claude-hooks install
-```
+Always targets `~/.claude/settings.json` (resolved from `HOME`).
+`CLAUDE_SETTINGS` is no longer supported.
 
 ## Development
 
@@ -65,8 +85,6 @@ No `npm install` — zero runtime dependencies beyond Node ≥18 and `jq`.
 | Branch or PR | CI runs `test/run.sh` only — no version bump, no npm publish |
 | `main` | CI runs tests → bumps version → publishes to npm |
 
-Work on a branch, open a PR (or push directly if solo), merge to `main` when green.
-
 ### Releasing
 
 Fully automatic — CI decides the bump (patch/minor/major) from your commit
@@ -79,7 +97,12 @@ push to main → tests → detect bump from commits → version bump → tag →
 **Never bump `package.json` manually.** The bump type is driven entirely by
 commit message prefixes — see [CONTRIBUTING.md](CONTRIBUTING.md) for the
 convention (`fix:` → patch, `feat:` → minor, `feat!:`/`BREAKING CHANGE` →
-major). `./release.sh` still exists as a manual escape hatch if you ever need
-to force a specific bump, but it's no longer part of the normal flow.
+major). `./release.sh` still exists as a manual escape hatch.
 
 Requires `NPM_TOKEN` in GitHub Actions secrets.
+
+After this cleanup version is published, the package is marked deprecated:
+
+```bash
+npm deprecate @c0nant/claude-hooks "Replaced by the Claude Code plugin conan-mods: run 'npx @c0nant/claude-hooks@latest uninstall', then '/plugin install conan-mods --marketplace C0nanT/claude-hooks'"
+```

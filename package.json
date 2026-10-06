@@ -1,7 +1,7 @@
 {
   "name": "@c0nant/claude-hooks",
   "version": "0.2.26",
-  "description": "Portable, removable Claude Code hooks — caveman auto-start and git guardrails, managed via npx.",
+  "description": "Deprecated: cleanup tool that removes the old claude-hooks hooks. Replaced by the Claude Code plugin conan-mods.",
   "keywords": [
     "claude-code",
     "hooks",

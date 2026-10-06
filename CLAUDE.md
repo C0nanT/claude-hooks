@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`@c0nant/claude-hooks` — an npm-published CLI that installs/uninstalls/lists Claude Code hooks into `~/.claude/settings.json` (or `$CLAUDE_SETTINGS`). No build step. Requires `jq` at runtime.
+`@c0nant/claude-hooks` — an npm-published CLI, now **deprecated**. Its last version is only a cleanup tool: `uninstall [--dry-run]` removes everything older versions put in `~/.claude/settings.json` and on disk; `install` refuses and prints the replacement, `/plugin install conan-mods --marketplace C0nanT/claude-hooks`. No build step. Requires `jq` at runtime.
 
-Companion to [C0nanT/skills](https://github.com/C0nanT/skills) — hooks reference skill assets at `~/.claude/skills/<skill-name>/` and no-op gracefully when the skill is absent.
+The cleanup always targets `~/.claude/settings.json` resolved from `HOME`; `CLAUDE_SETTINGS` is no longer read.
 
 ## Development setup
 
@@ -20,14 +20,15 @@ No `npm install` — zero dependencies. Requires `jq` installed.
 
 ```bash
 # Run locally
-node bin/claude-hooks.js install
-node bin/claude-hooks.js uninstall caveman
+node bin/claude-hooks.js uninstall --dry-run
+node bin/claude-hooks.js uninstall
 node bin/claude-hooks.js list
+node bin/claude-hooks.js install   # exits non-zero, prints the plugin command
 
 # Run test suite
 bash test/run.sh
 
-# Full dev environment reset (uninstalls hooks + removes ~/.agents/skills and ~/.claude/skills)
+# Full dev environment reset (runs the cleanup + removes ~/.agents/skills and ~/.claude/skills)
 ./reset-env.sh
 ```
 
@@ -74,43 +75,22 @@ CI bump commits use `[skip ci]` to avoid infinite loops. Requires `NPM_TOKEN` in
 
 ```
 bin/claude-hooks.js     # CLI entry: dispatches to install.sh / uninstall.sh / list.sh
-lib/common.sh           # Shared: HOOK_NS marker, SETTINGS_FILE resolution, jq helpers
-lib/settings.sh         # Pure settings-mutation functions (upsert_hook, remove_hook, hook_present)
-hooks/*.json            # Hook definitions: { event, matcher?, scripts_dir?, command }
-install.sh              # Upserts hooks into settings.json (idempotent)
-uninstall.sh            # Removes hooks by marker (surgical, namespace-safe)
-list.sh                 # Lists installed hooks from settings.json
+lib/common.sh           # Shared: HOOK_NS marker, OWN_HOOKS list, SETTINGS_FILE, report/removal helpers
+lib/settings.sh         # Pure settings-mutation functions (remove_hook, hook_present, legacy-hook matchers)
+install.sh              # Refuses (exit 1) and prints the plugin install command
+uninstall.sh            # The cleanup: settings.json, disk leftovers, old claude-notification plugin, report
+list.sh                 # Lists which of the 5 old hooks are still in settings.json
 test/run.sh             # Test suite: unit tests (sourcing lib/settings.sh) + CLI integration tests
-specs/                  # Design docs and specs for planned/in-progress features
 ```
 
-### Hook definition format (`hooks/*.json`)
-
-```json
-{ "event": "SessionStart", "matcher": "Bash", "scripts_dir": "lib/notification", "command": "..." }
-```
-
-- `matcher` — optional, used for `PreToolUse`/`PostToolUse`
-- `scripts_dir` — optional, path relative to repo root; contents are copied to `~/.claude/hooks-lib/<basename>/` on install and removed on uninstall when no hook with that `scripts_dir` remains
-- `command` — shell string injected into `settings.json`
+`hooks/*.json` and the script folders under `lib/` are what old versions installed; nothing reads them anymore.
 
 ### Marker protocol
 
-Every installed hook's command is prefixed with `# claude-hook:<name>` (defined as `HOOK_NS` in `lib/common.sh`). This marker is how install finds and replaces an existing hook (idempotent upsert) and how uninstall finds and removes it without touching anything else.
-
-### Settings file targeting
-
-`SETTINGS_FILE` defaults to `~/.claude/settings.json`. Set `CLAUDE_SETTINGS=.claude/settings.json` for project-scoped installs. All three scripts inherit this from `lib/common.sh`.
+Every hook old versions installed carries `# claude-hook:<name>` (prefix `HOOK_NS` in `lib/common.sh`) as the first line of its command. The cleanup removes only the exact markers in `OWN_HOOKS` (`caveman`, `git-guardrails`, `protect-dotenv`, `notify-attention`, `notify-done`) — never by prefix, because other projects reuse the marker (e.g. `statusline-reset` from C0nanT/skills, which must survive).
 
 ### Test structure
 
 `test/run.sh` has two layers:
-1. **Unit tests** — `source lib/settings.sh` directly and pipe JSON through `upsert_hook`/`remove_hook`/`hook_present`. No file I/O.
-2. **CLI integration tests** — invoke `node bin/claude-hooks.js` with `CLAUDE_SETTINGS` pointed at a temp file, assert on the resulting JSON.
-
-## Adding a new hook
-
-1. Create `hooks/<name>.json` with `event`, optional `matcher`, and `command`.
-2. Test: `node bin/claude-hooks.js install <name>` and verify `~/.claude/settings.json`.
-3. Verify idempotency: run install again, confirm no duplicate.
-4. Verify uninstall: `node bin/claude-hooks.js uninstall <name>`, confirm clean removal.
+1. **Unit tests** — `source lib/settings.sh` directly and pipe JSON through the settings functions. No file I/O.
+2. **CLI integration tests** — invoke `node bin/claude-hooks.js` with `HOME` pointed at a temp dir seeded with fake leftovers and a fake `claude` on `PATH` that logs its calls; assert on the resulting files, report and logged calls.
