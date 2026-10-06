@@ -46,3 +46,39 @@ marked_commands() {
     | ltrimstr("# ")
   '
 }
+
+# Previous-generation hooks: a command that carries the "conan-caveman-autostart"
+# marker, or cites conan-git-guardrails / block-dangerous-git without the
+# current "claude-hook:git-guardrails" marker.
+_JQ_LEGACY_DEF='def is_legacy_caveman: (.command // "") | contains("conan-caveman-autostart");
+  def is_legacy_git: ((.command // "") | (contains("conan-git-guardrails") or contains("block-dangerous-git")))
+    and (has_marker("claude-hook:git-guardrails") | not);'
+
+# _remove_hooks_where <jq predicate over a hook object>
+# Removes every hook matching the predicate; prunes empty groups, events, and hooks.
+_remove_hooks_where() {
+  jq "$_JQ_MARKER_DEF $_JQ_LEGACY_DEF"'
+    if .hooks then
+      .hooks |= (
+        to_entries
+        | map(.value |= [ .[]
+            | .hooks = [ .hooks[] | select(('"$1"') | not) ]
+            | select((.hooks | length) > 0) ])
+        | map(select((.value | length) > 0))
+        | from_entries
+      )
+      | if (.hooks | length) == 0 then del(.hooks) else . end
+    else . end
+  '
+}
+
+# _hooks_present_where <jq predicate over a hook object>
+_hooks_present_where() {
+  jq -e "$_JQ_MARKER_DEF $_JQ_LEGACY_DEF"'
+    [ .hooks // {} | to_entries[] | .value[] | .hooks[] | select('"$1"') ] | length > 0
+  ' >/dev/null 2>&1
+}
+
+# remove_legacy_hooks <caveman|git>   /   legacy_present <caveman|git>
+remove_legacy_hooks() { _remove_hooks_where "is_legacy_$1"; }
+legacy_present()      { _hooks_present_where "is_legacy_$1"; }

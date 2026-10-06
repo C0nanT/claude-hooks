@@ -26,6 +26,9 @@ source lib/settings.sh
 H="$TMPD/home"
 SF="$H/.claude/settings.json"
 CLI="node bin/claude-hooks.js"
+# Keep the cleanup away from the real runtime dir.
+export XDG_RUNTIME_DIR="$TMPD/run"
+mkdir -p "$XDG_RUNTIME_DIR"
 
 mkcmd() { printf '# claude-hook:%s\necho %s' "$1" "$1"; }
 
@@ -85,8 +88,8 @@ mkdir -p "$H/.claude"
 jq -n --arg c "$(mkcmd caveman)" '{hooks:{SessionStart:[{hooks:[{type:"command",command:$c}]}]}}' > "$SF"
 out4="$(HOME="$H" $CLI uninstall)"
 assert_eq "hooks object pruned"  "{}" "$(jq -c . "$SF")"
-assert_eq "1 removed"            "1"  "$(echo "$out4" | grep -c '  removed:')"
-assert_eq "4 missing"            "4"  "$(echo "$out4" | grep -c 'does not exist:')"
+assert_eq "1 removed"            "1"  "$(echo "$out4" | grep -c '  removed: claude-hook:')"
+assert_eq "4 missing"            "4"  "$(echo "$out4" | grep -c 'does not exist: claude-hook:')"
 
 section "CLI uninstall: no settings.json"
 rm -f "$SF"
@@ -94,6 +97,81 @@ rc=0; out5="$(HOME="$H" $CLI uninstall 2>&1)" || rc=$?
 assert_eq "exit 0"               "0" "$rc"
 assert_eq "reports missing file" "1" "$(echo "$out5" | grep -c 'not found')"
 assert_eq "file not created"     "false" "$([[ -e "$SF" ]] && echo true || echo false)"
+
+# ── CLI cleanup: leftovers on disk ──────────────────────────────────────────
+write_leftovers() {
+  mkdir -p "$H/.claude/hooks-lib/"{git-guardrails,notification,protect-dotenv} \
+           "$H/.claude/hooks" "$XDG_RUNTIME_DIR/claude-notification"
+  touch "$H/.claude/hooks-lib/git-guardrails/a.sh" "$XDG_RUNTIME_DIR/claude-notification/lock" \
+        "$H/.claude/hooks/conan-git-guardrails.sh" "$H/.claude/hooks/block-dangerous-git.sh"
+  jq -n --arg gg "$(mkcmd git-guardrails)" --arg sl "$(mkcmd statusline-reset)" '
+    {hooks: {
+      SessionStart: [{hooks: [{type: "command", command: "# conan-caveman-autostart\necho hi"}]}],
+      PreToolUse: [
+        {matcher: "Bash", hooks: [{type: "command", command: "bash ~/.claude/hooks/conan-git-guardrails.sh"},
+                                  {type: "command", command: $gg},
+                                  {type: "command", command: "~/.claude/hooks/block-dangerous-git.sh"}]}],
+      SessionEnd: [{hooks: [{type: "command", command: $sl}]}]}}' > "$SF"
+}
+
+section "CLI uninstall: leftovers on disk and previous generation"
+write_leftovers
+out6="$(HOME="$H" $CLI uninstall)"
+assert_eq "hooks-lib gone (empty)"      "false" "$([[ -e "$H/.claude/hooks-lib" ]] && echo true || echo false)"
+assert_eq "control dir gone"            "false" "$([[ -e "$XDG_RUNTIME_DIR/claude-notification" ]] && echo true || echo false)"
+assert_eq "hooks dir gone (empty)"      "false" "$([[ -e "$H/.claude/hooks" ]] && echo true || echo false)"
+assert_eq "legacy settings gone"        "null"  "$(jq '.hooks.SessionStart' "$SF")"
+assert_eq "git-guardrails marker hook also removed" "null" "$(jq '.hooks.PreToolUse' "$SF")"
+assert_eq "statusline-reset kept"       "1"     "$(jq '[.hooks.SessionEnd[0].hooks[]] | length' "$SF")"
+assert_eq "report lists hooks-lib dirs" "3" "$(echo "$out6" | grep -c "  removed: $H/.claude/hooks-lib/")"
+assert_eq "report lists control dir"    "1" "$(echo "$out6" | grep -c "  removed: $XDG_RUNTIME_DIR/claude-notification")"
+assert_eq "report lists old scripts"    "2" "$(echo "$out6" | grep -c "  removed: $H/.claude/hooks/")"
+assert_eq "report lists legacy hooks"   "2" "$(echo "$out6" | grep -c "removed: previous-generation hook")"
+out7="$(HOME="$H" $CLI uninstall)"
+assert_eq "second run: nothing removed" "0" "$(echo "$out7" | grep -c '  removed:')"
+
+section "CLI uninstall: legacy git command without the marker is removed, marked one is the 5-hook path"
+write_leftovers
+jq '.hooks.PreToolUse[0].hooks = [.hooks.PreToolUse[0].hooks[] | select(.command | contains("conan-git-guardrails"))]' "$SF" > "$SF.n" && mv "$SF.n" "$SF"
+HOME="$H" $CLI uninstall >/dev/null
+assert_eq "legacy git hook removed" "null" "$(jq '.hooks.PreToolUse' "$SF")"
+
+section "CLI uninstall: foreign files survive"
+write_leftovers
+touch "$H/.claude/hooks-lib/mine.sh" "$H/.claude/hooks/mine.sh"
+mkdir -p "$H/.claude/hooks-lib/other"
+HOME="$H" $CLI uninstall >/dev/null
+assert_eq "foreign in hooks-lib kept"  "true"  "$([[ -e "$H/.claude/hooks-lib/mine.sh" && -d "$H/.claude/hooks-lib/other" ]] && echo true || echo false)"
+assert_eq "own dirs gone from hooks-lib" "0" "$(ls -d "$H"/.claude/hooks-lib/{git-guardrails,notification,protect-dotenv} 2>/dev/null | wc -l)"
+assert_eq "foreign in hooks kept"      "true"  "$([[ -e "$H/.claude/hooks/mine.sh" ]] && echo true || echo false)"
+assert_eq "old scripts gone"           "0" "$(ls "$H"/.claude/hooks/{conan-git-guardrails.sh,block-dangerous-git.sh} 2>/dev/null | wc -l)"
+rm -rf "$H/.claude/hooks-lib" "$H/.claude/hooks"
+
+section "CLI uninstall: leftovers --dry-run"
+write_leftovers
+before="$(cat "$SF")"
+out8="$(HOME="$H" $CLI uninstall --dry-run)"
+assert_eq "settings unchanged"     "$before" "$(cat "$SF")"
+assert_eq "disk untouched"         "true" "$([[ -e "$H/.claude/hooks-lib/git-guardrails/a.sh" && -e "$XDG_RUNTIME_DIR/claude-notification/lock" && -e "$H/.claude/hooks/block-dangerous-git.sh" ]] && echo true || echo false)"
+assert_eq "lists dirs as would be removed" "3" "$(echo "$out8" | grep -c "would be removed: $H/.claude/hooks-lib/")"
+assert_eq "lists parents and control dir"  "3" "$(echo "$out8" | grep -c -E "would be removed: ($H/.claude/hooks-lib|$H/.claude/hooks|$XDG_RUNTIME_DIR/claude-notification)\$")"
+assert_eq "lists old scripts"      "2" "$(echo "$out8" | grep -c "would be removed: $H/.claude/hooks/")"
+assert_eq "lists legacy settings"  "2" "$(echo "$out8" | grep -c "would be removed: previous-generation hook")"
+rm -rf "$H/.claude/hooks-lib" "$H/.claude/hooks" "$XDG_RUNTIME_DIR/claude-notification"
+
+section "CLI uninstall: no settings.json still cleans disk"
+rm -f "$SF"; write_leftovers; rm -f "$SF"
+HOME="$H" $CLI uninstall >/dev/null
+assert_eq "control dir gone" "false" "$([[ -e "$XDG_RUNTIME_DIR/claude-notification" ]] && echo true || echo false)"
+
+section "CLI uninstall: control dir falls back to /tmp without XDG_RUNTIME_DIR"
+if [[ ! -e /tmp/claude-notification ]]; then
+  mkdir /tmp/claude-notification
+  env -u XDG_RUNTIME_DIR HOME="$H" $CLI uninstall >/dev/null
+  assert_eq "/tmp control dir gone" "false" "$([[ -e /tmp/claude-notification ]] && echo true || echo false)"
+else
+  ok "skipped: /tmp/claude-notification belongs to a real session"
+fi
 
 section "CLI uninstall: ignores CLAUDE_SETTINGS"
 write_fixture

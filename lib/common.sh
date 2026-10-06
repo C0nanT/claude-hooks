@@ -35,3 +35,36 @@ write_settings() {
 require_valid_settings() {
   jq -e . "$SETTINGS_FILE" >/dev/null 2>&1 || die "$SETTINGS_FILE is not valid JSON; fix it by hand first"
 }
+
+# Labels used in the cleanup report (set by uninstall.sh / list.sh).
+# remove_item <path>: report and delete a file or directory; no-op if absent.
+# Honors $dry_run (true/false) and $found_label.
+remove_item() {
+  local path="$1"
+  if [ -e "$path" ] || [ -L "$path" ]; then
+    echo "  $found_label: $path"
+    $dry_run || rm -rf -- "$path"
+  else
+    echo "  does not exist: $path"
+  fi
+}
+
+# clean_dir <dir> <name>...: remove the named entries inside <dir>, then <dir>
+# itself only if nothing else is left in it. Foreign entries are never touched.
+clean_dir() {
+  local dir="$1" name entry foreign=0
+  shift
+  for name in "$@"; do remove_item "$dir/$name"; done
+  [ -d "$dir" ] || { echo "  does not exist: $dir"; return 0; }
+  for entry in "$dir"/* "$dir"/.[!.]* "$dir"/..?*; do
+    [ -e "$entry" ] || [ -L "$entry" ] || continue
+    case " $* " in *" ${entry##*/} "*) continue ;; esac
+    foreign=1
+  done
+  if [ "$foreign" -eq 1 ]; then
+    echo "  kept (holds other files): $dir"
+  else
+    echo "  $found_label: $dir"
+    $dry_run || rmdir -- "$dir" 2>/dev/null || true
+  fi
+}

@@ -18,12 +18,12 @@ Arquivos e pastas alheios nesses lugares não são tocados.
 
 **Blocked by:** 01 (Limpeza: remover os 5 hooks do settings.json)
 
-Status: ready-for-agent
+Status: ready-for-human
 
-- [ ] Remove as 3 pastas em `hooks-lib`, e a `hooks-lib` só se ficar vazia.
-- [ ] Remove a pasta de controle em `$XDG_RUNTIME_DIR` ou em `/tmp`.
-- [ ] Remove os hooks da geração anterior do `settings.json` sem tocar no `statusline-reset`.
-- [ ] Remove os scripts antigos de `~/.claude/hooks/`, e a pasta só se ficar vazia.
-- [ ] Um arquivo alheio colocado em `hooks-lib` ou em `~/.claude/hooks/` sobrevive, e a pasta fica.
-- [ ] `--dry-run` não apaga nada e lista tudo.
-- [ ] Todos os itens aparecem no relatório.
+- [x] Remove as 3 pastas em `hooks-lib`, e a `hooks-lib` só se ficar vazia.
+- [x] Remove a pasta de controle em `$XDG_RUNTIME_DIR` ou em `/tmp`.
+- [x] Remove os hooks da geração anterior do `settings.json` sem tocar no `statusline-reset`.
+- [x] Remove os scripts antigos de `~/.claude/hooks/`, e a pasta só se ficar vazia.
+- [x] Um arquivo alheio colocado em `hooks-lib` ou em `~/.claude/hooks/` sobrevive, e a pasta fica.
+- [x] `--dry-run` não apaga nada e lista tudo.
+- [x] Todos os itens aparecem no relatório.
