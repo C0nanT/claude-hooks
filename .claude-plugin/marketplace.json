@@ -1,0 +1,5 @@
+{
+  "name": "claude-hooks",
+  "owner": { "name": "C0nanT" },
+  "plugins": [{ "name": "conan-mods", "source": "./" }]
+}

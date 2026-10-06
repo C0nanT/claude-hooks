@@ -94,3 +94,17 @@ Requires `NPM_TOKEN` in GitHub Actions secrets.
 The whole package is deprecated on npm (done from the npm website, so the
 message is the generic "Package no longer supported"). `npx` prints that
 warning and still runs the cleanup.
+
+### Plugin (`conan-mods`) local development
+
+The plugin work lives on the `mods` branch and only reaches `main` at the
+migration's final ticket (a push to `main` publishes).
+
+```bash
+claude --plugin-dir .          # load the plugin from this folder
+claude plugin validate .       # manifest, marketplace and hooks module
+claude plugin test .           # runs hooks/*.test.ts
+```
+
+Or add the folder as a local marketplace to get `/reload-plugins`:
+`claude plugin marketplace add .` then `/plugin install conan-mods`.

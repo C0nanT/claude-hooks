@@ -1,0 +1,5 @@
+{
+  "name": "conan-mods",
+  "version": "0.1.0",
+  "description": "Conan's Claude Code mods: git-guard blocks destructive git commands."
+}

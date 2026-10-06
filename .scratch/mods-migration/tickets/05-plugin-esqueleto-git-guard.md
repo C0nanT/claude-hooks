@@ -20,8 +20,8 @@
 
 Status: ready-for-agent
 
-- [ ] `claude plugin validate` passa e o plugin passa no type-check.
-- [ ] Todos os casos atuais das seções "git-guardrails: blocks dangerous commands", "blocks dangerous commands with global options" e "allows safe commands" foram portados e passam.
-- [ ] Os comandos bloqueados recebem a mensagem atual, com comando e padrão.
-- [ ] O plugin carrega localmente pela pasta do repo (`--plugin-dir`, ou marketplace local).
-- [ ] O README do branch tem uma seção curta de desenvolvimento local.
+- [x] `claude plugin validate` passa e o plugin passa no type-check.
+- [x] Todos os casos atuais das seções "git-guardrails: blocks dangerous commands", "blocks dangerous commands with global options" e "allows safe commands" foram portados e passam.
+- [x] Os comandos bloqueados recebem a mensagem atual, com comando e padrão.
+- [x] O plugin carrega localmente pela pasta do repo (`--plugin-dir`, ou marketplace local).
+- [x] O README do branch tem uma seção curta de desenvolvimento local.
