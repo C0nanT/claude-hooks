@@ -91,8 +91,6 @@ major). `./release.sh` still exists as a manual escape hatch.
 
 Requires `NPM_TOKEN` in GitHub Actions secrets.
 
-Every version before the cleanup tool is marked deprecated, pointing at it (needs `npm login`):
-
-```bash
-npm deprecate @c0nant/claude-hooks@"<0.4.0" "Replaced by the Claude Code plugin conan-mods: run 'npx @c0nant/claude-hooks@0.4.0 uninstall', then '/plugin install conan-mods --marketplace C0nanT/claude-hooks'"
-```
+The whole package is deprecated on npm (done from the npm website, so the
+message is the generic "Package no longer supported"). `npx` prints that
+warning and still runs the cleanup.

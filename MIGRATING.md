@@ -20,7 +20,9 @@ npx @c0nant/claude-hooks@0.4.0 --help | head -1
 ```
 
 Expected: `claude-hooks — cleanup tool for the old claude-hooks settings.json hooks`.
-Anything else means you got an old version: stop.
+Anything else means you got an old version: stop. An `npm warn deprecated …
+Package no longer supported` line is expected: the whole package is
+deprecated, and the cleanup still runs.
 
 ## 2. Preview
 
