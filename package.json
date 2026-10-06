@@ -1,6 +1,6 @@
 {
   "name": "@c0nant/claude-hooks",
-  "version": "0.2.26",
+  "version": "0.3.0",
   "description": "Deprecated: cleanup tool that removes the old claude-hooks hooks. Replaced by the Claude Code plugin conan-mods.",
   "keywords": [
     "claude-code",
