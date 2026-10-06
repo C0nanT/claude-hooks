@@ -20,11 +20,11 @@
 
 **Blocked by:** 01, 02, 03
 
-Status: ready-for-agent
+Status: ready-for-human
 
 - [x] O README descreve os 3 passos da migração e avisa sobre o passo 3.
 - [x] O CLAUDE.md está coerente com o CLI de limpeza.
 - [x] `test/run.sh` passa.
 - [x] A versão foi publicada no npm pelo pipeline (confirmar o push com o dono antes).
 - [x] Rodar `--dry-run` no PC de desenvolvimento e mostrar o relatório ao dono antes da limpeza real.
-- [ ] `npm deprecate` executado com mensagem apontando para o plugin (confirmar com o dono antes).
+- [x] `npm deprecate` executado com mensagem apontando para o plugin (confirmar com o dono antes).
