@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 const BLOCKED = [
   'git push origin main',
@@ -29,6 +29,7 @@ const ALLOWED = [
 
 for (const command of BLOCKED) {
   test(`blocks: ${command}`, async ($, on) => {
+    mock.store(on)
     on('tool.call', { tool: 'Bash' }, () => ({ result: 'ran', text: 'ran' }))
     const out = await $.tool.call({ tool: 'Bash', command })
     expect(out.deny).toContain(`BLOCKED: '${command}' matches dangerous pattern '`)
@@ -38,6 +39,7 @@ for (const command of BLOCKED) {
 
 for (const command of ALLOWED) {
   test(`allows: ${command}`, async ($, on) => {
+    mock.store(on)
     on('tool.call', { tool: 'Bash' }, () => ({ result: 'ran', text: 'ran' }))
     const out = await $.tool.call({ tool: 'Bash', command })
     expect(out.text).toBe('ran')
@@ -45,6 +47,7 @@ for (const command of ALLOWED) {
 }
 
 test('allows: a non-Bash tool whose input mentions a dangerous command', async ($, on) => {
+  mock.store(on)
   on('tool.call', { tool: 'Read' }, () => ({ result: 'ran', text: 'ran' }))
   const out = await $.tool.call({ tool: 'Read', file_path: 'git push --force' })
   expect(out.text).toBe('ran')

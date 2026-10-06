@@ -20,10 +20,10 @@
 
 **Blocked by:** 05 (Plugin: esqueleto + git-guard)
 
-Status: ready-for-agent
+Status: ready-for-human
 
-- [ ] `/hooks` lista os 4 nomes, todos `on` numa instalação nova.
-- [ ] `/hooks git-guard off` faz um `git push` passar, e `on` volta a bloquear.
-- [ ] Nome ou valor inválido responde com o uso e os nomes válidos, sem mudar estado.
-- [ ] O estado persiste numa sessão nova.
-- [ ] O contrato de tipos declara os valores guardados, e `claude plugin validate` passa.
+- [x] `/hooks` lista os 4 nomes, todos `on` numa instalação nova.
+- [x] `/hooks git-guard off` faz um `git push` passar, e `on` volta a bloquear.
+- [x] Nome ou valor inválido responde com o uso e os nomes válidos, sem mudar estado.
+- [x] O estado persiste numa sessão nova.
+- [x] O contrato de tipos declara os valores guardados, e `claude plugin validate` passa.

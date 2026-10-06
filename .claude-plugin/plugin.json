@@ -1,5 +1,6 @@
 {
   "name": "conan-mods",
   "version": "0.1.0",
-  "description": "Conan's Claude Code mods: git-guard blocks destructive git commands."
+  "description": "Conan's Claude Code mods: git-guard blocks destructive git commands.",
+  "types": "./types/index.d.ts"
 }
