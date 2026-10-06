@@ -13,7 +13,6 @@ GIT_PREFIX="git([[:space:]]+${GIT_OPT})*[[:space:]]+"
 
 DANGEROUS_PATTERNS=(
   "${GIT_PREFIX}push"
-  "${GIT_PREFIX}commit"
   "${GIT_PREFIX}reset --hard"
   "${GIT_PREFIX}clean -fd"
   "${GIT_PREFIX}clean -f"

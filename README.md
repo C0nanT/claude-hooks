@@ -25,7 +25,7 @@ npx @c0nant/claude-hooks install
 | Hook | Event | What it does |
 |------|-------|-------------|
 | `caveman` | `SessionStart` | Injects the caveman ruleset as hidden context — agent starts in token-saving mode every session without typing `/caveman` |
-| `git-guardrails` | `PreToolUse/Bash` | Blocks destructive git commands (`push`, `reset --hard`, `clean -f`, `branch -D`, `checkout .`, `restore .`) before execution |
+| `git-guardrails` | `PreToolUse/Bash` | Blocks destructive git commands (`push`, `push --force`, `reset --hard`, `clean -f`, `branch -D`, `checkout .`, `restore .`, `rm`) before execution |
 
 The `caveman` hook no-ops gracefully if its skill asset is absent; `git-guardrails` bundles its own script and needs nothing else.
 
