@@ -30,6 +30,18 @@ CLI="node bin/claude-hooks.js"
 export XDG_RUNTIME_DIR="$TMPD/run"
 mkdir -p "$XDG_RUNTIME_DIR"
 
+# Fake `claude` first on PATH: logs calls to $CLAUDE_LOG, fails when FAKE_CLAUDE_FAIL=1.
+FAKEBIN="$TMPD/fakebin"; mkdir -p "$FAKEBIN"
+export CLAUDE_LOG="$TMPD/claude.log"
+cat > "$FAKEBIN/claude" <<'FAKE'
+#!/usr/bin/env bash
+echo "$*" >> "$CLAUDE_LOG"
+if [[ "${FAKE_CLAUDE_FAIL:-0}" == 1 ]]; then echo "not installed" >&2; exit 1; fi
+FAKE
+chmod +x "$FAKEBIN/claude"
+REALPATH="$PATH"
+export PATH="$FAKEBIN:$PATH"
+
 mkcmd() { printf '# claude-hook:%s\necho %s' "$1" "$1"; }
 
 write_fixture() {
@@ -127,7 +139,7 @@ assert_eq "report lists hooks-lib dirs" "3" "$(echo "$out6" | grep -c "  removed
 assert_eq "report lists control dir"    "1" "$(echo "$out6" | grep -c "  removed: $XDG_RUNTIME_DIR/claude-notification")"
 assert_eq "report lists old scripts"    "2" "$(echo "$out6" | grep -c "  removed: $H/.claude/hooks/")"
 assert_eq "report lists legacy hooks"   "2" "$(echo "$out6" | grep -c "removed: previous-generation hook")"
-out7="$(HOME="$H" $CLI uninstall)"
+out7="$(FAKE_CLAUDE_FAIL=1 HOME="$H" $CLI uninstall)"
 assert_eq "second run: nothing removed" "0" "$(echo "$out7" | grep -c '  removed:')"
 
 section "CLI uninstall: legacy git command without the marker is removed, marked one is the 5-hook path"
@@ -178,6 +190,34 @@ write_fixture
 echo '{}' > "$TMPD/other.json"
 CLAUDE_SETTINGS="$TMPD/other.json" HOME="$H" $CLI uninstall >/dev/null
 assert_eq "HOME file was cleaned"   "null" "$(jq '.hooks.SessionStart' "$SF")"
+
+section "CLI uninstall: old plugin calls claude"
+write_fixture; : > "$CLAUDE_LOG"
+out9="$(HOME="$H" $CLI uninstall)"
+assert_eq "plugin uninstall called" "1" "$(grep -c '^plugin uninstall claude-notification$' "$CLAUDE_LOG")"
+assert_eq "marketplace remove called" "1" "$(grep -c '^plugin marketplace remove claude-notification$' "$CLAUDE_LOG")"
+assert_eq "report lists both" "2" "$(echo "$out9" | grep -c 'removed: old plugin')"
+
+section "CLI uninstall: old plugin absent (claude errors) reports and succeeds"
+write_fixture; : > "$CLAUDE_LOG"
+set +e; out10="$(FAKE_CLAUDE_FAIL=1 HOME="$H" $CLI uninstall)"; rc=$?; set -e
+assert_eq "exit 0" "0" "$rc"
+assert_eq "report says failed" "2" "$(echo "$out10" | grep -c 'failed .*: .*old plugin')"
+assert_eq "settings still cleaned" "null" "$(jq '.hooks.SessionStart' "$SF")"
+
+section "CLI uninstall: no claude on PATH reports and succeeds"
+NOCLAUDE="$TMPD/noclaude"; mkdir -p "$NOCLAUDE"
+for t in bash node jq cat sed mktemp rm rmdir mv env dirname; do ln -sf "$(PATH="$REALPATH" command -v $t)" "$NOCLAUDE/$t"; done
+write_fixture
+set +e; out11="$(PATH="$NOCLAUDE" HOME="$H" $CLI uninstall)"; rc=$?; set -e
+assert_eq "exit 0" "0" "$rc"
+assert_eq "report says claude not found" "1" "$(echo "$out11" | grep -c 'claude not found')"
+
+section "CLI uninstall: --dry-run does not call claude"
+write_fixture; : > "$CLAUDE_LOG"
+out12="$(HOME="$H" $CLI uninstall --dry-run)"
+assert_eq "no claude calls" "0" "$(wc -l < "$CLAUDE_LOG")"
+assert_eq "report says would be removed" "2" "$(echo "$out12" | grep -c 'would be removed: old plugin')"
 
 section "CLI install: refuses"
 rc=0; err="$(HOME="$H" $CLI install 2>&1)" || rc=$?

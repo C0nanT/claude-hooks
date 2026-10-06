@@ -12,6 +12,10 @@ set -euo pipefail
 # left untouched. Emptied groups, events and the hooks object are pruned.
 # Disk leftovers (hooks-lib folders, notification control files, previous-
 # generation scripts) are removed; foreign files in those places survive.
+# The old claude-notification plugin and its marketplace are removed through
+# the official `claude plugin` commands (never by editing Claude Code files).
+# A missing `claude`, plugin or marketplace is reported and never fails the run;
+# --dry-run never calls `claude`.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
@@ -83,6 +87,27 @@ fi
 clean_dir "$HOME/.claude/hooks-lib" git-guardrails notification protect-dotenv
 remove_item "${XDG_RUNTIME_DIR:-/tmp}/claude-notification"
 clean_dir "$HOME/.claude/hooks" conan-git-guardrails.sh block-dangerous-git.sh
+
+# remove_old_plugin <label> <claude args...>: report one `claude plugin` step.
+remove_old_plugin() {
+  local label="$1" out
+  shift
+  if $dry_run; then
+    echo "  $found_label: $label"
+  elif out="$(claude "$@" 2>&1)"; then
+    echo "  removed: $label"
+  else
+    echo "  failed (plugin or marketplace may not exist): $label"
+    [ -z "$out" ] || printf '%s\n' "$out" | sed 's/^/    /'
+  fi
+}
+
+if ! $dry_run && ! command -v claude >/dev/null 2>&1; then
+  echo "  claude not found: skipped old plugin claude-notification (uninstall it and its marketplace by hand)"
+else
+  remove_old_plugin "old plugin: claude plugin uninstall claude-notification" plugin uninstall claude-notification
+  remove_old_plugin "old plugin marketplace: claude plugin marketplace remove claude-notification" plugin marketplace remove claude-notification
+fi
 
 if [ -n "$current" ]; then
   leftover="$(printf '%s' "$current" | marked_commands)"

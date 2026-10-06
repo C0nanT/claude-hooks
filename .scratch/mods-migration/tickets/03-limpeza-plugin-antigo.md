@@ -15,10 +15,10 @@
 
 **Blocked by:** 01 (Limpeza: remover os 5 hooks do settings.json)
 
-Status: ready-for-agent
+Status: ready-for-human
 
-- [ ] Chama `claude plugin uninstall` para `claude-notification` e `claude plugin marketplace remove` para o marketplace dele.
-- [ ] Sem `claude` no `PATH`: relata "claude não encontrado" e termina com sucesso.
-- [ ] Com o plugin ausente (o `claude` falso devolve erro): relata e segue.
-- [ ] `--dry-run` não chama o `claude`.
-- [ ] O resultado aparece no relatório.
+- [x] Chama `claude plugin uninstall` para `claude-notification` e `claude plugin marketplace remove` para o marketplace dele.
+- [x] Sem `claude` no `PATH`: relata "claude não encontrado" e termina com sucesso.
+- [x] Com o plugin ausente (o `claude` falso devolve erro): relata e segue.
+- [x] `--dry-run` não chama o `claude`.
+- [x] O resultado aparece no relatório.
