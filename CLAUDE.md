@@ -80,6 +80,7 @@ lib/settings.sh         # Pure settings-mutation functions (remove_hook, hook_pr
 install.sh              # Refuses (exit 1) and prints the plugin install command
 uninstall.sh            # The cleanup: settings.json, disk leftovers, old claude-notification plugin, report
 list.sh                 # Lists which of the 5 old hooks are still in settings.json
+MIGRATING.md            # Per-PC migration checklist + recovery if an old version (≤0.3.0) ran uninstall
 test/run.sh             # Test suite: unit tests (sourcing lib/settings.sh) + CLI integration tests
 ```
 

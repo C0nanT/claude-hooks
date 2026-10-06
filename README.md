@@ -6,32 +6,22 @@
 
 ## Migrating a PC
 
-Run these three steps on every PC that had the old hooks:
+On every PC that had the old hooks, run **one at a time**:
 
-1. Preview what the cleanup would remove (writes nothing, never calls `claude`):
-
-   ```bash
-   npx @c0nant/claude-hooks@latest uninstall --dry-run
-   ```
-
-2. Run the real cleanup:
-
-   ```bash
-   npx @c0nant/claude-hooks@latest uninstall
-   ```
-
-3. Install the plugin, inside Claude Code:
-
-   ```
-   /plugin install conan-mods --marketplace C0nanT/claude-hooks
-   ```
+1. `npx @c0nant/claude-hooks@0.4.0 uninstall --dry-run` (preview, writes nothing);
+2. `npx @c0nant/claude-hooks@0.4.0 uninstall`;
+3. `/plugin install conan-mods --marketplace C0nanT/claude-hooks`, inside Claude Code.
 
 > **Heads-up:** step 3 only works once the plugin release (Release B) is out on
 > this repo's `main`. Until then the marketplace has no `conan-mods` plugin and
-> the command fails; run steps 1–2 now and step 3 after that release.
+> the command fails.
+
+**Pin `@0.4.0`:** `0.3.0` and older are the old installer, whose `uninstall`
+ignores `--dry-run` and also deletes `statusline-reset`. The full checklist,
+what to look for in the report, and how to recover if an old version ran are in
+[MIGRATING.md](MIGRATING.md).
 
 Requires Node ≥18 and `jq` (Ubuntu/WSL: `sudo apt-get install -y jq`).
-
 ## What the cleanup removes
 
 - **`~/.claude/settings.json`:** the 5 hooks this project installed, each by its
@@ -58,10 +48,10 @@ command still carrying a `claude-hook:` marker. Running it again is safe.
 ## Commands
 
 ```bash
-npx @c0nant/claude-hooks@latest uninstall --dry-run   # preview the cleanup
-npx @c0nant/claude-hooks@latest uninstall             # run the cleanup
-npx @c0nant/claude-hooks@latest list                  # old hooks still in settings.json
-npx @c0nant/claude-hooks@latest install               # refuses; prints the plugin command
+npx @c0nant/claude-hooks@0.4.0 uninstall --dry-run   # preview the cleanup
+npx @c0nant/claude-hooks@0.4.0 uninstall             # run the cleanup
+npx @c0nant/claude-hooks@0.4.0 list                  # old hooks still in settings.json
+npx @c0nant/claude-hooks@0.4.0 install               # refuses; prints the plugin command
 ```
 
 Always targets `~/.claude/settings.json` (resolved from `HOME`).
@@ -101,8 +91,8 @@ major). `./release.sh` still exists as a manual escape hatch.
 
 Requires `NPM_TOKEN` in GitHub Actions secrets.
 
-After this cleanup version is published, the package is marked deprecated:
+Every version before the cleanup tool is marked deprecated, pointing at it (needs `npm login`):
 
 ```bash
-npm deprecate @c0nant/claude-hooks "Replaced by the Claude Code plugin conan-mods: run 'npx @c0nant/claude-hooks@latest uninstall', then '/plugin install conan-mods --marketplace C0nanT/claude-hooks'"
+npm deprecate @c0nant/claude-hooks@"<0.4.0" "Replaced by the Claude Code plugin conan-mods: run 'npx @c0nant/claude-hooks@0.4.0 uninstall', then '/plugin install conan-mods --marketplace C0nanT/claude-hooks'"
 ```
