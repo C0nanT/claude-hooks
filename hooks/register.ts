@@ -1,4 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
+import { BASH_BLOCKED_MESSAGE, bashReferencesEnv, DOTENV_FILE_TOOLS, fileBlockedMessage, isBlockedEnvPath } from './dotenv-guard-rules'
 import { blockedMessage, matchDangerous } from './git-guard-rules'
 import { listText, parseHooksArgs, TOGGLE_NAMES, usageText } from './toggles'
 import type { ToggleName, Toggles } from './toggles'
@@ -43,4 +44,15 @@ export const register: Register = on => {
     const pattern = matchDangerous(e.command)
     return pattern === undefined ? next(e) : { deny: blockedMessage(e.command, pattern) }
   }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: git-guard failed, command blocked.` }))
+
+  on('tool.call', { tool: [...DOTENV_FILE_TOOLS] }, async ($, e, next) => {
+    if (!(await readToggles($))['dotenv-guard']) return next(e)
+    const path = typeof e.file_path === 'string' ? e.file_path : ''
+    return path !== '' && isBlockedEnvPath(path) ? { deny: fileBlockedMessage(path) } : next(e)
+  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: dotenv-guard failed, call blocked.` }))
+
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    if (!(await readToggles($))['dotenv-guard']) return next(e)
+    return bashReferencesEnv(e.command) ? { deny: BASH_BLOCKED_MESSAGE } : next(e)
+  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: dotenv-guard failed, command blocked.` }))
 }

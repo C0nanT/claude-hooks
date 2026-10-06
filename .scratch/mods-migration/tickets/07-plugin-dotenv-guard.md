@@ -19,9 +19,9 @@
 
 **Blocked by:** 06 (Plugin: `/hooks` liga/desliga com persistência)
 
-Status: ready-for-agent
+Status: ready-for-human
 
-- [ ] Todos os casos atuais das seções "protect-dotenv: blocks .env reads", "allows safe variants" e "bash command detection" foram portados e passam.
-- [ ] As mensagens de bloqueio são idênticas às atuais.
-- [ ] Desligado pelo `/hooks`, nada é bloqueado. Religado, volta a bloquear.
-- [ ] Ferramentas fora da lista (por exemplo Grep) não são afetadas, como hoje.
+- [x] Todos os casos atuais das seções "protect-dotenv: blocks .env reads", "allows safe variants" e "bash command detection" foram portados e passam.
+- [x] As mensagens de bloqueio são idênticas às atuais.
+- [x] Desligado pelo `/hooks`, nada é bloqueado. Religado, volta a bloquear.
+- [x] Ferramentas fora da lista (por exemplo Grep) não são afetadas, como hoje.
