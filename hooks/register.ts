@@ -1,6 +1,7 @@
 import type { EngineInterface, Register } from 'claude-code'
 import { BASH_BLOCKED_MESSAGE, bashReferencesEnv, DOTENV_FILE_TOOLS, fileBlockedMessage, isBlockedEnvPath } from './dotenv-guard-rules'
 import { blockedMessage, matchDangerous } from './git-guard-rules'
+import { isWsl, SOUND_DEBOUNCE_MS, ubuntuCommands, wslCommand } from './sound-rules'
 import { listText, offBandText, parseModsArgs, TOGGLE_NAMES, usageText } from './toggles'
 import type { ToggleName, Toggles } from './toggles'
 
@@ -40,8 +41,34 @@ async function readCavemanSkill($: EngineInterface): Promise<string | undefined>
   }
 }
 
+/** True when the command ran and exited 0; a command that cannot start counts as failed. */
+async function runs($: EngineInterface, argv: readonly string[]): Promise<boolean> {
+  try {
+    return (await $.process.run(argv)).exitCode === 0
+  } catch {
+    return false
+  }
+}
+
+async function readProcVersion($: EngineInterface): Promise<string | undefined> {
+  try {
+    return await $.fs.read('/proc/version')
+  } catch {
+    return undefined
+  }
+}
+
+async function playDone($: EngineInterface): Promise<void> {
+  if (isWsl(await readProcVersion($), await $.env.get('WSL_DISTRO_NAME'))) {
+    await runs($, wslCommand())
+    return
+  }
+  for (const argv of ubuntuCommands()) if (await runs($, argv)) return
+}
+
 export const register: Register = on => {
   let isCavemanWarned = false
+  let lastSoundAt: number | undefined
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'conan-mods', description: 'List or switch the conan-mods functions', argumentHint: '[<name> on|off]' })
@@ -92,5 +119,15 @@ export const register: Register = on => {
       return result
     }
     return { sections: [...result.sections, { id: 'conan-mods:caveman', text, scope: 'session' }] }
+  }).catch(($, e, next) => next(e))
+
+  on('turn.complete', async ($, e, next) => {
+    const result = await next(e)
+    if (e.agentId !== undefined || e.isAborted || !(await readToggles($)).sound) return result
+    const now = await $.clock.now()
+    if (lastSoundAt !== undefined && now - lastSoundAt < SOUND_DEBOUNCE_MS) return result
+    lastSoundAt = now
+    await playDone($)
+    return result
   }).catch(($, e, next) => next(e))
 }

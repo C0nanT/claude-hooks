@@ -22,9 +22,10 @@
 
 Status: ready-for-agent
 
-- [ ] No ambiente WSL simulado, chama PowerShell com os bipes atuais e não chama `paplay`.
-- [ ] No Ubuntu simulado, chama `paplay` com `complete.oga`. Se falhar, tenta `bell.oga`.
-- [ ] Desligado, nenhum comando é chamado.
-- [ ] Dois disparos em menos de 2 s geram uma chamada só.
-- [ ] Nenhum arquivo de controle é criado em disco.
-- [ ] Testado manualmente nos 4 ambientes (Ubuntu, Cursor, WSL, Cursor+WSL), ou registrado quais ficaram pendentes.
+- [x] No ambiente WSL simulado, chama PowerShell com os bipes atuais e não chama `paplay`.
+- [x] No Ubuntu simulado, chama `paplay` com `complete.oga`. Se falhar, tenta `bell.oga`.
+- [x] Desligado, nenhum comando é chamado.
+- [x] Dois disparos em menos de 2 s geram uma chamada só.
+- [x] Nenhum arquivo de controle é criado em disco.
+- [x] Testado manualmente nos 4 ambientes (Ubuntu, Cursor, WSL, Cursor+WSL), ou registrado quais ficaram pendentes.
+  - Ubuntu (terminal): ok, ligar e desligar testados em 2026-10-06. Pendentes: Cursor, WSL, Cursor+WSL.
