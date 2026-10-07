@@ -42,21 +42,64 @@ export function formatResetTime(iso: string, timezone: string | undefined): stri
   return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone }).format(date)
 }
 
-/** The line, fields left to right; a field with no data is left out. */
-export function buildStatusLine(fields: StatusLineFields): string {
-  const parts: string[] = []
-  if (fields.model) parts.push(fields.effort === undefined ? fields.model : `${fields.model} (${fields.effort})`)
+/** What a segment shows, which picks its colour in the band. */
+export type StatusTone = 'model' | 'context' | 'duration' | 'limit-low' | 'limit-mid' | 'limit-high' | 'branch'
+export type StatusSegment = { text: string; tone: StatusTone }
+
+/** Theme colours per tone; the rate limit goes green under 50%, yellow to 79%, red from 80%. */
+export const TONE_COLORS: Record<StatusTone, string> = {
+  model: 'claude',
+  context: 'suggestion',
+  duration: 'subtle',
+  'limit-low': 'success',
+  'limit-mid': 'warning',
+  'limit-high': 'error',
+  branch: 'merged',
+}
+
+/** The Nerd Font git-branch glyph, drawn before the branch; needs a Nerd Font in the terminal. */
+export const BRANCH_ICON = '\ue0a0'
+
+/** How each effort level is written next to the model. */
+export const EFFORT_TAGS: Record<string, string> = { low: 'Low', medium: 'Medium', high: 'High', xhigh: 'XHigh', max: 'Max' }
+
+/** The model with its effort tag on the right, as `[High]`; an effort with no tag is shown as `(value)`. */
+export function formatModel(model: string, effort: string | number | undefined): string {
+  if (effort === undefined) return model
+  const tag = typeof effort === 'string' ? EFFORT_TAGS[effort] : undefined
+  return tag === undefined ? `${model} (${effort})` : `${model} [${tag}]`
+}
+
+export function limitTone(percent: number): StatusTone {
+  if (percent < 50) return 'limit-low'
+  return percent < 80 ? 'limit-mid' : 'limit-high'
+}
+
+/** The segments, fields left to right; a field with no data is left out. */
+export function buildStatusSegments(fields: StatusLineFields): StatusSegment[] {
+  const segments: StatusSegment[] = []
+  if (fields.model) segments.push({ text: formatModel(fields.model, fields.effort), tone: 'model' })
   if (fields.contextPercent !== undefined) {
     const tokens = fields.contextTokens === undefined ? '' : ` ${formatTokens(fields.contextTokens)}`
-    parts.push(`ctx:${Math.round(fields.contextPercent)}%${tokens}`)
+    segments.push({ text: `ctx:${Math.round(fields.contextPercent)}%${tokens}`, tone: 'context' })
   }
-  if (fields.durationMs !== undefined) parts.push(formatDuration(fields.durationMs))
+  if (fields.durationMs !== undefined) segments.push({ text: formatDuration(fields.durationMs), tone: 'duration' })
   if (fields.fiveHourPercent !== undefined) {
     const reset = fields.fiveHourResetsAt === undefined ? undefined : formatResetTime(fields.fiveHourResetsAt, fields.timezone)
-    parts.push(`limit:${Math.round(fields.fiveHourPercent)}%${reset === undefined ? '' : ` ↺ ${reset}`}`)
+    const percent = Math.round(fields.fiveHourPercent)
+    segments.push({ text: `limit:${percent}%${reset === undefined ? '' : ` ↺ ${reset}`}`, tone: limitTone(percent) })
   }
-  if (fields.branch) parts.push(fields.branch)
-  return parts.join(' · ')
+  if (fields.branch) segments.push({ text: `${BRANCH_ICON} ${fields.branch}`, tone: 'branch' })
+  return segments
+}
+
+export const SEGMENT_SEPARATOR = ' · '
+
+/** The plain line: the segments' text joined. */
+export function buildStatusLine(fields: StatusLineFields): string {
+  return buildStatusSegments(fields)
+    .map(segment => segment.text)
+    .join(SEGMENT_SEPARATOR)
 }
 
 const UNHELPFUL_ZONES = new Set(['', 'UTC', 'Etc/UTC', 'Etc/UCT', 'UCT', 'Etc/Universal', 'Universal', 'Etc/Zulu', 'Zulu'])

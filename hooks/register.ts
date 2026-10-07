@@ -2,9 +2,10 @@ import type { EngineInterface, Register } from 'claude-code'
 import { BASH_BLOCKED_MESSAGE, bashReferencesEnv, DOTENV_FILE_TOOLS, fileBlockedMessage, isBlockedEnvPath } from './dotenv-guard-rules'
 import { blockedMessage, matchDangerous } from './git-guard-rules'
 import { matchRmDangerous, rmBlockedMessage } from './rm-guard-rules'
-import { matchSecretCommand, matchSecretPath, SECRET_FILE_TOOLS, secretBlockedMessage } from './secret-guard-rules'
+import { isExtensionRule, matchSecretCommand, matchSecretPath, resolveCommandPath, SECRET_FILE_TOOLS, secretBlockedMessage } from './secret-guard-rules'
 import { isWsl, SOUND_DEBOUNCE_MS, ubuntuCommands, wslCommand } from './sound-rules'
-import { buildStatusLine, chooseTimezone, parseWindowsTimezone, pickHostTimezone } from './statusline-rules'
+import { buildStatusSegments, chooseTimezone, parseWindowsTimezone, pickHostTimezone, SEGMENT_SEPARATOR, TONE_COLORS } from './statusline-rules'
+import type { StatusSegment } from './statusline-rules'
 import { listText, offBandText, parseModsArgs, TOGGLE_NAMES, usageText } from './toggles'
 import type { ToggleName, Toggles } from './toggles'
 
@@ -34,9 +35,9 @@ async function setToggle($: EngineInterface, name: ToggleName, isOn: boolean): P
 /** Switches one function by the path the text command and the pane's buttons share. */
 async function applyToggle($: EngineInterface, state: StatusLineState, name: ToggleName, isOn: boolean): Promise<void> {
   await setToggle($, name, isOn)
-  if (name !== 'statusline') return
-  if (isOn) await drawStatusLine($, state)
-  else $.ui.status(undefined)
+  if (name !== 'statusline' && name !== 'statusline-color') return
+  if ((await readToggles($)).statusline) await drawStatusLine($, state)
+  else clearStatusLine($, state)
 }
 
 const CAVEMAN_WARNING = 'caveman: skill não encontrada, rode `npx skills@latest add C0nanT/skills`'
@@ -79,6 +80,15 @@ async function readHome($: EngineInterface): Promise<string> {
   }
 }
 
+/** Whether the path exists; a failed check counts as existing, so the guard stays closed. */
+async function pathExists($: EngineInterface, path: string): Promise<boolean> {
+  try {
+    return await $.fs.exists(path)
+  } catch {
+    return true
+  }
+}
+
 /** The session's directory, or an empty string when it cannot be read. */
 async function readCwd($: EngineInterface): Promise<string> {
   try {
@@ -90,6 +100,8 @@ async function readCwd($: EngineInterface): Promise<string> {
 
 type StatusLineState = {
   effort?: string | number
+  /** What the coloured band draws; undefined while the plain line is in use or nothing was drawn. */
+  segments?: StatusSegment[]
   timezone?: string
   isTimezoneResolved: boolean
 }
@@ -134,25 +146,45 @@ async function resolveTimezone($: EngineInterface, state: StatusLineState): Prom
   return state.timezone
 }
 
-/** Draws the status line from the session's usage; leaves the line as it was when anything throws. */
+/** Clears both places the status line can be drawn. */
+function clearStatusLine($: EngineInterface, state: StatusLineState): void {
+  $.ui.status(undefined)
+  if (state.segments === undefined) return
+  state.segments = undefined
+  $.ui.invalidate('ui.render')
+}
+
+/**
+ * Draws the status line from the session's usage: in colour in the band above the prompt when
+ * statusline-color is on, else as the plain line under it. Leaves the line as it was when anything throws.
+ */
 async function drawStatusLine($: EngineInterface, state: StatusLineState): Promise<void> {
   try {
     const usage = await $.session.usage()
     const fiveHour = usage.rateLimits.find(limit => limit.kind === 'five_hour')
     const branch = await outputOf($, ['git', 'branch', '--show-current'])
-    $.ui.status(
-      buildStatusLine({
-        model: await $.session.model(),
-        effort: state.effort,
-        contextPercent: usage.context.percent,
-        contextTokens: usage.context.tokens,
-        durationMs: (await $.clock.now()) - usage.startedAt,
-        fiveHourPercent: fiveHour?.percentUsed,
-        fiveHourResetsAt: fiveHour?.resetsAt,
-        timezone: fiveHour?.resetsAt === undefined ? undefined : await resolveTimezone($, state),
-        branch,
-      }),
-    )
+    const segments = buildStatusSegments({
+      model: await $.session.model(),
+      effort: state.effort,
+      contextPercent: usage.context.percent,
+      contextTokens: usage.context.tokens,
+      durationMs: (await $.clock.now()) - usage.startedAt,
+      fiveHourPercent: fiveHour?.percentUsed,
+      fiveHourResetsAt: fiveHour?.resetsAt,
+      timezone: fiveHour?.resetsAt === undefined ? undefined : await resolveTimezone($, state),
+      branch,
+    })
+    if ((await readToggles($))['statusline-color']) {
+      $.ui.status(undefined)
+      state.segments = segments
+      $.ui.invalidate('ui.render')
+    } else {
+      $.ui.status(segments.map(segment => segment.text).join(SEGMENT_SEPARATOR))
+      if (state.segments !== undefined) {
+        state.segments = undefined
+        $.ui.invalidate('ui.render')
+      }
+    }
   } catch {
     // A failed measurement keeps the previous line.
   }
@@ -222,10 +254,21 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const text = offBandText(await readToggles($))
-    if (text === undefined) return next(e)
-    const { Text } = $.ui.resolve(e)
-    return Text({ children: text })
+    const current = await readToggles($)
+    const text = offBandText(current)
+    const segments = current.statusline && current['statusline-color'] ? statusLine.segments : undefined
+    if (text === undefined && (segments === undefined || segments.length === 0)) return next(e)
+    const { Box, Text } = $.ui.resolve(e)
+    const offBand = text === undefined ? undefined : Text({ key: 'off-band', children: text })
+    if (segments === undefined || segments.length === 0) return offBand
+    const status = Box({
+      key: 'status',
+      children: segments.flatMap((segment, index) => [
+        ...(index === 0 ? [] : [Text({ key: `sep-${index}`, dimColor: true, children: SEGMENT_SEPARATOR })]),
+        Text({ key: `seg-${index}`, color: TONE_COLORS[segment.tone], bold: segment.tone === 'model', children: segment.text }),
+      ]),
+    })
+    return Box({ flexDirection: 'column', children: offBand === undefined ? [status] : [status, offBand] })
   })
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
@@ -255,8 +298,12 @@ export const register: Register = on => {
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!(await readToggles($))['secret-guard']) return next(e)
-    const match = matchSecretCommand(e.command, await readHome($))
-    return match === undefined ? next(e) : { deny: secretBlockedMessage(match.path, match.rule) }
+    const home = await readHome($)
+    for (const match of matchSecretCommand(e.command, home)) {
+      if (isExtensionRule(match.rule) && !(await pathExists($, resolveCommandPath(match.path, home, await readCwd($))))) continue
+      return { deny: secretBlockedMessage(match.path, match.rule) }
+    }
+    return next(e)
   }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: secret-guard failed, command blocked.` }))
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {

@@ -37,14 +37,29 @@ export function matchSecretPath(path: string, home: string): string | undefined 
   return undefined
 }
 
-/** The first path in the command that matches a secret rule, with that rule. */
-export function matchSecretCommand(command: string, home: string): { path: string; rule: string } | undefined {
+/** Every token in the command that matches a secret rule, with that rule, left to right. */
+export function matchSecretCommand(command: string, home: string): { path: string; rule: string }[] {
+  const matches: { path: string; rule: string }[] = []
   for (const token of command.split(/[\s;&|<>=()"'`,]+/)) {
     if (token === '') continue
     const rule = matchSecretPath(token, home)
-    if (rule !== undefined) return { path: token, rule }
+    if (rule !== undefined) matches.push({ path: token, rule })
   }
-  return undefined
+  return matches
+}
+
+/**
+ * True for the extension rules (a `.pem`, `.key`, `.p12` or `.pfx` file). In a command they also
+ * match code such as `row.key`, so a Bash match on one blocks only when the token names a file that exists.
+ */
+export function isExtensionRule(rule: string): boolean {
+  return rule.startsWith('*.')
+}
+
+/** The token as an absolute path: `~` and `$HOME` resolved, relative paths taken from `cwd`. */
+export function resolveCommandPath(token: string, home: string, cwd: string): string {
+  const expanded = normalize(token, home)
+  return expanded.startsWith('/') || cwd === '' ? expanded : normalize(`${cwd}/${expanded}`, home)
 }
 
 export function secretBlockedMessage(path: string, rule: string): string {
