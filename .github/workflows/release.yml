@@ -18,9 +18,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          registry-url: https://registry.npmjs.org
-      - run: sudo apt-get install -y jq
-      - run: bash test/run.sh
+      - name: Install Claude Code
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: claude plugin validate .
+      - run: claude plugin test .
       - name: Determine bump type from commit messages
         id: bump
         run: |
@@ -37,16 +40,30 @@ jobs:
 
           echo "Detected bump: $BUMP (range: $RANGE)"
           echo "type=$BUMP" >> "$GITHUB_OUTPUT"
-      - name: Bump version, tag, and publish
+      - name: Bump plugin version and tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          npm version "${{ steps.bump.outputs.type }}" --no-git-tag-version
-          VERSION="$(node -p "require('./package.json').version")"
-          git add package.json
+          # Bumps plugin.json and the marketplace entry together; nothing is published to npm.
+          VERSION="$(node -e '
+            const fs = require("fs")
+            const bump = process.argv[1]
+            const pluginPath = ".claude-plugin/plugin.json"
+            const marketPath = ".claude-plugin/marketplace.json"
+            const plugin = JSON.parse(fs.readFileSync(pluginPath, "utf8"))
+            let [major, minor, patch] = plugin.version.split(".").map(Number)
+            if (bump === "major") [major, minor, patch] = [major + 1, 0, 0]
+            else if (bump === "minor") [minor, patch] = [minor + 1, 0]
+            else patch += 1
+            const version = `${major}.${minor}.${patch}`
+            plugin.version = version
+            fs.writeFileSync(pluginPath, JSON.stringify(plugin, null, 2) + "\n")
+            const market = JSON.parse(fs.readFileSync(marketPath, "utf8"))
+            market.plugins.find(p => p.name === plugin.name).version = version
+            fs.writeFileSync(marketPath, JSON.stringify(market, null, 2) + "\n")
+            console.log(version)
+          ' "${{ steps.bump.outputs.type }}")"
+          git add .claude-plugin/plugin.json .claude-plugin/marketplace.json
           git commit -m "$VERSION [skip ci]"
           git tag "v$VERSION"
-          npm publish --access public
           git push origin main --tags
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

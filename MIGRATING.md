@@ -54,14 +54,11 @@ Run it a second time if you want proof: everything reads `does not exist`.
 
 ## 4. Install the plugin
 
-Inside Claude Code, **once Release B is out** (the plugin is on this repo's `main`):
+Inside Claude Code:
 
 ```
 /plugin install conan-mods --marketplace C0nanT/claude-hooks
 ```
-
-Until then, steps 1–3 leave the PC without caveman, `.env` protection and the
-done sound. Either wait for Release B before cleaning up, or accept the gap.
 
 ## Recovery: an old version (≤0.3.0) ran `uninstall`
 

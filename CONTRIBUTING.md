@@ -8,8 +8,8 @@ your commit subject accordingly:
 
 | Prefix | Bump | Example |
 |---|---|---|
-| `fix:`, or no prefix at all | **patch** | `fix: correct hook_present exit code` |
-| `feat:` | **minor** | `feat: add protect-dotenv hook` |
+| `fix:`, or no prefix at all | **patch** | `fix: allow .env.template in dotenv-guard` |
+| `feat:` | **minor** | `feat: add dotenv-guard function` |
 | `feat!:`, `fix!:`, any `!:` after the type, or a `BREAKING CHANGE` footer | **major** | `feat!: drop support for Node < 18` |
 
 Only the commit **subject line** (and body, for `BREAKING CHANGE` footers) is
@@ -21,18 +21,18 @@ wins (a `fix:` and a `feat:` together produce a minor release).
 
 ### Why this matters
 
-Once you push to `main`, CI bumps `package.json`, tags, and publishes to npm
-with **no manual step** — there is no longer a need to run `./release.sh
-minor` or `major` by hand. Getting the prefix right is what decides whether
-your change ships as a patch, minor, or major release.
+Once you push to `main`, CI writes the new version to
+`.claude-plugin/plugin.json` and the marketplace entry, commits it and tags it,
+with **no manual step**. Getting the prefix right is what decides whether your
+change ships as a patch, minor, or major release.
 
 ### Examples
 
 ```
 fix: block "git rm" pattern with word boundary
-feat: add caveman skill hook
-feat(git-guardrails): add configurable pattern list
-feat!: rename CLAUDE_SETTINGS to CLAUDE_HOOKS_SETTINGS
+feat: add sound toggle to /conan-mods
+feat(git-guard): cover git switch --discard-changes
+feat!: rename the /conan-mods command
 
-BREAKING CHANGE: existing installs must re-export the env var under the new name
+BREAKING CHANGE: muscle memory and docs must use the new command name
 ```

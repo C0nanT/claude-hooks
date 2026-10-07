@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-echo "==> Running the claude-hooks cleanup..."
-bash "$SCRIPT_DIR/uninstall.sh"
+echo "==> Running the old claude-hooks cleanup..."
+npx @c0nant/claude-hooks@0.4.0 uninstall
 
 echo "==> Removing installed skills..."
 rm -rf "$HOME/.agents/skills"

@@ -1,6 +1,0 @@
-{
-  "event": "PreToolUse",
-  "matcher": "Bash",
-  "scripts_dir": "lib/git-guardrails",
-  "command": "f=\"$HOME/.claude/hooks-lib/git-guardrails/block-dangerous-git.sh\"; [ -f \"$f\" ] && exec bash \"$f\"; exit 0"
-}

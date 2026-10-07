@@ -1,5 +1,0 @@
-{
-  "event": "Notification",
-  "scripts_dir": "lib/notification",
-  "command": "f=\"$HOME/.claude/hooks-lib/notification/notify-attention.sh\"; [ -f \"$f\" ] && exec bash \"$f\"; exit 0"
-}

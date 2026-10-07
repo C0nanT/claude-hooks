@@ -23,11 +23,11 @@
 
 Status: ready-for-agent
 
-- [ ] O Release A já está publicado no npm antes deste merge.
-- [ ] Nenhum arquivo do instalador antigo resta no repo.
-- [ ] O CI de branch roda validate e test do plugin e falha se algum teste falhar.
-- [ ] O pipeline da `main` grava a versão no plugin, cria a tag e não roda `npm publish`.
-- [ ] O pre-push roda os testes do plugin.
+- [x] O Release A já está publicado no npm antes deste merge.
+- [x] Nenhum arquivo do instalador antigo resta no repo.
+- [x] O CI de branch roda validate e test do plugin e falha se algum teste falhar.
+- [x] O pipeline da `main` grava a versão no plugin, cria a tag e não roda `npm publish`.
+- [x] O pre-push roda os testes do plugin.
 - [ ] O merge com `feat!:` gera a versão `1.0.0` (confirmar o push com o dono antes).
 - [ ] Num PC limpo pela Release A, `/plugin install conan-mods --marketplace C0nanT/claude-hooks` instala e as 4 funções funcionam.
-- [ ] README e CLAUDE.md atualizados. O `TODO.md` continua com o item do `statusline-reset`.
+- [x] README e CLAUDE.md atualizados. O `TODO.md` continua com o item do `statusline-reset`.

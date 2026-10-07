@@ -1,6 +1,7 @@
 {
   "name": "conan-mods",
   "version": "0.1.0",
-  "description": "Conan's Claude Code mods: git-guard blocks destructive git commands.",
+  "description": "Conan's Claude Code mods: caveman prompt, git-guard, dotenv-guard and an end-of-task sound, each toggled with /conan-mods.",
+  "author": { "name": "Conan Torres" },
   "types": "./types/index.d.ts"
 }
