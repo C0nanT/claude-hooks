@@ -1,6 +1,14 @@
 {
   "name": "claude-hooks",
   "description": "Marketplace for conan-mods, Conan's Claude Code plugin.",
-  "owner": { "name": "C0nanT" },
-  "plugins": [{ "name": "conan-mods", "source": "./", "version": "0.1.0" }]
+  "owner": {
+    "name": "C0nanT"
+  },
+  "plugins": [
+    {
+      "name": "conan-mods",
+      "source": "./",
+      "version": "0.5.0"
+    }
+  ]
 }
