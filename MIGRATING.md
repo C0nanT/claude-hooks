@@ -13,6 +13,24 @@ couple of minutes and is safe to repeat.
 - Run the commands **one at a time**. Pasting the dry-run and the real cleanup
   together runs both before you can read the report.
 
+### Windows + WSL
+
+- Run every step **inside the WSL shell**, where Claude Code and its
+  `~/.claude` live. Node and `jq` must be installed in WSL, not just on Windows.
+- One run covers both the plain WSL terminal and Cursor connected to WSL: they
+  share the same WSL `HOME`.
+- The done sound plays on Windows through `powershell.exe`. Check that WSL can
+  reach it before you start:
+
+  ```bash
+  powershell.exe -Command '[Console]::Beep(523, 120)'
+  ```
+
+  You should hear one beep. `command not found` means WSL interop or
+  `appendWindowsPath` is off in `/etc/wsl.conf`, and the plugin's sound stays
+  silent until it is on.
+- Claude Code installed natively on Windows (outside WSL) is not covered.
+
 ## 1. Check you have the cleanup tool
 
 ```bash
@@ -59,6 +77,33 @@ Inside Claude Code:
 ```
 /plugin install conan-mods --marketplace C0nanT/claude-hooks
 ```
+
+The `caveman` function reads `~/.claude/skills/caveman/SKILL.md`. If
+`ls ~/.claude/skills/caveman/SKILL.md` fails, install the skills first:
+`npx skills@latest add C0nanT/skills`.
+
+## 5. Check the plugin works
+
+In a new Claude Code session:
+
+- [ ] `/conan-mods` lists `caveman`, `git-guard`, `dotenv-guard` and `sound`,
+      all `on`.
+- [ ] **git-guard:** in any repo, ask Claude to run `git push --dry-run`. The
+      call is denied with `BLOCKED: 'git push --dry-run' matches dangerous pattern …`.
+- [ ] **dotenv-guard:** in a scratch folder, `echo FAKE=1 > .env` and
+      `cp .env .env.example`, then ask Claude to read both. `.env` is denied
+      (the message suggests `.env.example`), and `.env.example` is read.
+- [ ] **caveman:** replies come back terse from the first message. No
+      `caveman: skill não encontrada` toast appears.
+- [ ] **sound:** the end of each answer plays the chime **once**: three beeps
+      from Windows on WSL, the system "complete" sound on Ubuntu. Two sounds
+      mean an old hook or the `claude-notification` plugin survived: rerun
+      step 3.
+- [ ] **Off band:** `/conan-mods sound off` shows `⚠ off: sound` above the
+      prompt right away. `/conan-mods sound on` removes it.
+
+Updating later: `claude plugin update conan-mods`, then `/reload-plugins` in
+open sessions.
 
 ## Recovery: an old version (≤0.3.0) ran `uninstall`
 
