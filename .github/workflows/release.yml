@@ -40,18 +40,21 @@ jobs:
 
           echo "Detected bump: $BUMP (range: $RANGE)"
           echo "type=$BUMP" >> "$GITHUB_OUTPUT"
+          echo "last_tag=$LAST_TAG" >> "$GITHUB_OUTPUT"
       - name: Bump plugin version and tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Bumps plugin.json and the marketplace entry together; nothing is published to npm.
+          # Bumps from the last tag (tags predate plugin.json's version), writes plugin.json and
+          # the marketplace entry together; nothing is published to npm.
           VERSION="$(node -e '
             const fs = require("fs")
-            const bump = process.argv[1]
+            const [bump, lastTag] = process.argv.slice(1)
             const pluginPath = ".claude-plugin/plugin.json"
             const marketPath = ".claude-plugin/marketplace.json"
             const plugin = JSON.parse(fs.readFileSync(pluginPath, "utf8"))
-            let [major, minor, patch] = plugin.version.split(".").map(Number)
+            const base = lastTag ? lastTag.replace(/^v/, "") : plugin.version
+            let [major, minor, patch] = base.split(".").map(Number)
             if (bump === "major") [major, minor, patch] = [major + 1, 0, 0]
             else if (bump === "minor") [minor, patch] = [minor + 1, 0]
             else patch += 1
@@ -62,7 +65,7 @@ jobs:
             market.plugins.find(p => p.name === plugin.name).version = version
             fs.writeFileSync(marketPath, JSON.stringify(market, null, 2) + "\n")
             console.log(version)
-          ' "${{ steps.bump.outputs.type }}")"
+          ' "${{ steps.bump.outputs.type }}" "${{ steps.bump.outputs.last_tag }}")"
           git add .claude-plugin/plugin.json .claude-plugin/marketplace.json
           git commit -m "$VERSION [skip ci]"
           git tag "v$VERSION"
