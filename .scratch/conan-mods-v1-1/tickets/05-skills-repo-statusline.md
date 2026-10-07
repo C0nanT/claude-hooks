@@ -12,10 +12,10 @@
 
 Status: ready-for-agent
 
-- [ ] A skill não copia scripts nem grava `statusLine` ou hooks.
-- [ ] A skill remove o `statusLine` antigo, as entradas `claude-hook:statusline-reset` e os três arquivos em `~/.claude/`, preservando o resto do `settings.json`.
-- [ ] A skill e o guia apontam para `/plugin install conan-mods --marketplace C0nanT/claude-hooks` e `/conan-mods statusline on|off`.
-- [ ] Os scripts bash da skill foram removidos do repo.
-- [ ] A tabela do README do repo de skills lista `caveman`, `git-guard`, `dotenv-guard`, `secret-guard`, `rm-guard`, `sound` e `statusline`.
-- [ ] O pre-push do repo de skills passa.
+- [x] A skill não copia scripts nem grava `statusLine` ou hooks.
+- [x] A skill remove o `statusLine` antigo, as entradas `claude-hook:statusline-reset` e os três arquivos em `~/.claude/`, preservando o resto do `settings.json`.
+- [x] A skill e o guia apontam para `/plugin install conan-mods --marketplace C0nanT/claude-hooks` e `/conan-mods statusline on|off`.
+- [x] Os scripts bash da skill foram removidos do repo.
+- [x] A tabela do README do repo de skills lista `caveman`, `git-guard`, `dotenv-guard`, `secret-guard`, `rm-guard`, `sound` e `statusline`.
+- [x] O pre-push do repo de skills passa.
 - [ ] O PR foi aberto no repo de skills (confirmar com o dono antes do push).
