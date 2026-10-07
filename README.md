@@ -1,13 +1,14 @@
 # claude-hooks → `conan-mods`
 
 A Claude Code plugin (a mod: TypeScript hooks that run inside Claude Code) with
-four functions:
+five functions:
 
 | Function | What it does |
 |---|---|
 | `caveman` | Adds `~/.claude/skills/caveman/SKILL.md` to the session instructions. If the skill is missing, warns once per session with `npx skills@latest add C0nanT/skills`. |
 | `git-guard` | Blocks destructive git commands (`push`, `reset --hard`, `clean -f`, `branch -D`, `checkout .`, `restore .`, `rm`), even with global options before the subcommand. |
 | `dotenv-guard` | Blocks reading or editing `.env` / `.env.*` through Read, Edit, Write, MultiEdit and Bash. `.env.example`, `.env.sample`, `.env.dist` and `.env.template` stay allowed. |
+| `secret-guard` | Blocks reading or editing credential files through Read, Edit, Write, MultiEdit and Bash: `~/.ssh/*` (except `known_hosts`, `config` and `*.pub`), `id_rsa`/`id_dsa`/`id_ecdsa`/`id_ed25519`, `~/.aws/credentials`, `~/.config/gcloud/`, `~/.azure/`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `.npmrc`, `.pypirc`, `.netrc`, `.git-credentials`, `~/.docker/config.json` and `~/.config/gh/hosts.yml`. |
 | `sound` | Plays a sound when Claude finishes a task: `paplay` on Ubuntu, PowerShell beeps on WSL. No visual notification. |
 
 ## Install
@@ -42,7 +43,7 @@ Everything starts **on**. The choice persists across sessions on the same PC.
 /conan-mods git-guard on
 ```
 
-Valid names: `caveman`, `git-guard`, `dotenv-guard`, `sound`. Anything else
+Valid names: `caveman`, `git-guard`, `dotenv-guard`, `secret-guard`, `sound`. Anything else
 prints the usage.
 
 ### The off band

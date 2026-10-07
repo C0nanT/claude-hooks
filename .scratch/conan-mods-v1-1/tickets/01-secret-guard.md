@@ -12,12 +12,12 @@
 
 **Blocked by:** None (can start immediately)
 
-Status: ready-for-agent
+Status: ready-for-human
 
-- [ ] Read/Edit/Write/MultiEdit em `~/.ssh/id_ed25519`, `~/.aws/credentials`, `server.pem` e `.npmrc` são negados com a mensagem que nomeia caminho e regra.
-- [ ] `~/.ssh/known_hosts`, `~/.ssh/config` e `~/.ssh/id_ed25519.pub` passam.
-- [ ] Um comando Bash que cita um arquivo bloqueado (incluindo nas formas `~/` e `$HOME/`) é negado.
-- [ ] Um erro dentro do hook nega a chamada, como nos guards atuais.
-- [ ] `/conan-mods secret-guard off` deixa tudo passar e a faixa mostra `secret-guard` na ordem do spec; `on` volta a bloquear.
-- [ ] `/conan-mods` lista `secret-guard` e o uso o aceita como nome válido.
-- [ ] README atualizado; `claude plugin validate .` e `claude plugin test .` passam.
+- [x] Read/Edit/Write/MultiEdit em `~/.ssh/id_ed25519`, `~/.aws/credentials`, `server.pem` e `.npmrc` são negados com a mensagem que nomeia caminho e regra.
+- [x] `~/.ssh/known_hosts`, `~/.ssh/config` e `~/.ssh/id_ed25519.pub` passam.
+- [x] Um comando Bash que cita um arquivo bloqueado (incluindo nas formas `~/` e `$HOME/`) é negado.
+- [x] Um erro dentro do hook nega a chamada, como nos guards atuais.
+- [x] `/conan-mods secret-guard off` deixa tudo passar e a faixa mostra `secret-guard` na ordem do spec; `on` volta a bloquear.
+- [x] `/conan-mods` lista `secret-guard` e o uso o aceita como nome válido.
+- [x] README atualizado; `claude plugin validate .` e `claude plugin test .` passam.

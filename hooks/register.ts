@@ -1,6 +1,7 @@
 import type { EngineInterface, Register } from 'claude-code'
 import { BASH_BLOCKED_MESSAGE, bashReferencesEnv, DOTENV_FILE_TOOLS, fileBlockedMessage, isBlockedEnvPath } from './dotenv-guard-rules'
 import { blockedMessage, matchDangerous } from './git-guard-rules'
+import { matchSecretCommand, matchSecretPath, SECRET_FILE_TOOLS, secretBlockedMessage } from './secret-guard-rules'
 import { isWsl, SOUND_DEBOUNCE_MS, ubuntuCommands, wslCommand } from './sound-rules'
 import { listText, offBandText, parseModsArgs, TOGGLE_NAMES, usageText } from './toggles'
 import type { ToggleName, Toggles } from './toggles'
@@ -58,6 +59,15 @@ async function readProcVersion($: EngineInterface): Promise<string | undefined> 
   }
 }
 
+/** HOME, or an empty string when it is unset or cannot be read. */
+async function readHome($: EngineInterface): Promise<string> {
+  try {
+    return (await $.env.get('HOME')) ?? ''
+  } catch {
+    return ''
+  }
+}
+
 async function playDone($: EngineInterface): Promise<void> {
   if (isWsl(await readProcVersion($), await $.env.get('WSL_DISTRO_NAME'))) {
     await runs($, wslCommand())
@@ -106,6 +116,20 @@ export const register: Register = on => {
     if (!(await readToggles($))['dotenv-guard']) return next(e)
     return bashReferencesEnv(e.command) ? { deny: BASH_BLOCKED_MESSAGE } : next(e)
   }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: dotenv-guard failed, command blocked.` }))
+
+  on('tool.call', { tool: [...SECRET_FILE_TOOLS] }, async ($, e, next) => {
+    if (!(await readToggles($))['secret-guard']) return next(e)
+    const path = typeof e.file_path === 'string' ? e.file_path : ''
+    if (path === '') return next(e)
+    const rule = matchSecretPath(path, await readHome($))
+    return rule === undefined ? next(e) : { deny: secretBlockedMessage(path, rule) }
+  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: secret-guard failed, call blocked.` }))
+
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    if (!(await readToggles($))['secret-guard']) return next(e)
+    const match = matchSecretCommand(e.command, await readHome($))
+    return match === undefined ? next(e) : { deny: secretBlockedMessage(match.path, match.rule) }
+  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: secret-guard failed, command blocked.` }))
 
   on('prompt.compose', async ($, e, next) => {
     const result = await next(e)
