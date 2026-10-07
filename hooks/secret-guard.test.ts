@@ -23,13 +23,26 @@ const BASH_BLOCKED = [
   'cat ${HOME}/.ssh/id_ed25519',
   `cat ${HOME}/.npmrc`,
   'cp server.pem /tmp/x',
+  'cat certs/app.key',
   'echo hi && cat "$HOME/.ssh/id_rsa"',
 ]
-const BASH_ALLOWED = ['cat ~/.ssh/known_hosts', 'ls ~/.ssh', 'cat ~/.ssh/id_ed25519.pub', 'echo hello']
+const BASH_ALLOWED = [
+  'cat ~/.ssh/known_hosts',
+  'ls ~/.ssh',
+  'cat ~/.ssh/id_ed25519.pub',
+  'echo hello',
+  // Extension rules block in Bash only when the file exists: code like `row.key` passes.
+  "node -e 'rows.map(row => row.key)'",
+  'cat missing.pem',
+]
+const CWD = '/project'
+const EXISTING = [`${CWD}/server.pem`, `${CWD}/certs/app.key`]
 
 async function setup($: any, on: any, store = {}) {
   mock.store(on, store)
   mock.env(on, { HOME })
+  on('session.cwd', () => ({ value: CWD }))
+  on('fs.exists', (_$: any, e: any) => ({ value: EXISTING.includes(e.path) }))
   on('tool.call', () => ({ result: 'ran', text: 'ran' }))
   on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', children: ['x'] }))
 }
@@ -63,6 +76,15 @@ for (const command of BASH_ALLOWED) {
     expect((await $.tool.call({ tool: 'Bash', command })).text).toBe('ran')
   })
 }
+
+test('when the file check fails, an extension match in Bash still blocks', async ($, on) => {
+  mock.store(on)
+  mock.env(on, { HOME })
+  on('session.cwd', () => ({ value: CWD }))
+  on('fs.exists', () => ({ deny: 'EACCES' }))
+  on('tool.call', () => ({ result: 'ran', text: 'ran' }))
+  expect((await $.tool.call({ tool: 'Bash', command: 'cat unknown.key' })).deny).toContain('matches secret rule')
+})
 
 test('an error inside the hook denies the call', async ($, on) => {
   mock.env(on, { HOME })

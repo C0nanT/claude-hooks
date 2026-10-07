@@ -7,6 +7,7 @@ export type StoredToggles = {
   'rm-guard'?: boolean
   sound?: boolean
   statusline?: boolean
+  'statusline-color'?: boolean
 }
 
 declare module 'claude-code' {

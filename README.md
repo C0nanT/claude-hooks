@@ -1,17 +1,18 @@
 # claude-hooks → `conan-mods`
 
 A Claude Code plugin (a mod: TypeScript hooks that run inside Claude Code) with
-seven functions:
+eight functions:
 
 | Function | What it does |
 |---|---|
 | `caveman` | Adds `~/.claude/skills/caveman/SKILL.md` to the session instructions. If the skill is missing, warns once per session with `npx skills@latest add C0nanT/skills`. |
 | `git-guard` | Blocks destructive git commands (`push`, `reset --hard`, `clean -f`, `branch -D`, `checkout .`, `restore .`, `rm`), even with global options before the subcommand. |
 | `dotenv-guard` | Blocks reading or editing `.env` / `.env.*` through Read, Edit, Write, MultiEdit and Bash. `.env.example`, `.env.sample`, `.env.dist` and `.env.template` stay allowed. |
-| `secret-guard` | Blocks reading or editing credential files through Read, Edit, Write, MultiEdit and Bash: `~/.ssh/*` (except `known_hosts`, `config` and `*.pub`), `id_rsa`/`id_dsa`/`id_ecdsa`/`id_ed25519`, `~/.aws/credentials`, `~/.config/gcloud/`, `~/.azure/`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `.npmrc`, `.pypirc`, `.netrc`, `.git-credentials`, `~/.docker/config.json` and `~/.config/gh/hosts.yml`. |
+| `secret-guard` | Blocks reading or editing credential files through Read, Edit, Write, MultiEdit and Bash: `~/.ssh/*` (except `known_hosts`, `config` and `*.pub`), `id_rsa`/`id_dsa`/`id_ecdsa`/`id_ed25519`, `~/.aws/credentials`, `~/.config/gcloud/`, `~/.azure/`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `.npmrc`, `.pypirc`, `.netrc`, `.git-credentials`, `~/.docker/config.json` and `~/.config/gh/hosts.yml`. In Bash the extension rules block only a file that exists, so code such as `row.key` passes; if the check fails, the command is blocked. |
 | `rm-guard` | Blocks destructive shell commands: `rm -rf` (any flag spelling) on `/`, `/*`, `~`, `$HOME`, `..`, `../…`, a lone `*` or an absolute path outside the current directory, `chmod -R 777`, and `curl`/`wget` piped into `sh`, `bash` or `zsh`. Each part of a compound line is checked; `rm -rf node_modules` and other relative paths inside the project pass. |
 | `sound` | Plays a sound when Claude finishes a task: `paplay` on Ubuntu, PowerShell beeps on WSL. No visual notification. |
-| `statusline` | Draws the plugin's status line under the prompt: model, effort in parentheses when known, `ctx:<pct>% <tokens>k`, session duration (`23m`, `1h05m`), `limit:<pct>% ↺ HH:MM` for the 5-hour rate-limit window and the git branch. A field with no data is left out. Updates when the session opens and after each measurement; the duration restarts on `/clear`. No colour: the plugin status line is plain text. |
+| `statusline` | Draws the plugin's status line under the prompt: model, with the effort on its right when known (`[Low]`, `[Medium]`, `[High]`, `[XHigh]`, `[Max]`; it appears after the first turn, since the engine reports effort only then), `ctx:<pct>% <tokens>k`, session duration (`23m`, `1h05m`), `limit:<pct>% ↺ HH:MM` for the 5-hour rate-limit window and the git branch after the Nerd Font branch icon (` main`; without a Nerd Font it shows as a box). A field with no data is left out. Updates when the session opens and after each measurement; the duration restarts on `/clear`. Drawn in colour above the prompt while `statusline-color` is on, as plain text under it otherwise. |
+| `statusline-color` | Draws the status line in colour in a band above the prompt: the model in bold, the rate limit green under 50%, yellow to 79% and red from 80%. Off, the line goes back under the prompt as plain text (that line cannot take colour). Does nothing while `statusline` is off. |
 
 ## Install
 
@@ -50,7 +51,7 @@ button). Pressing a button switches that function the same way the text command 
 redraw at once. Esc closes the pane and returns the prompt. The reply still carries the `name: on|off` list, for the
 transcript and for places where the pane does not open.
 
-Valid names: `caveman`, `git-guard`, `dotenv-guard`, `secret-guard`, `rm-guard`, `sound`, `statusline`. Anything else
+Valid names: `caveman`, `git-guard`, `dotenv-guard`, `secret-guard`, `rm-guard`, `sound`, `statusline`, `statusline-color`. Anything else
 prints the usage.
 
 ### The status line
@@ -59,7 +60,8 @@ The reset time is drawn in your local zone, resolved once per session in this or
 `STATUSLINE_TZ` (an IANA name such as `America/Sao_Paulo`), the host zone
 (`timedatectl`, `/etc/timezone`, the `/etc/localtime` link; plain UTC is ignored),
 and on WSL, when Linux still says UTC, the Windows zone read through PowerShell.
-Effort shows from the first turn on.
+Effort shows from the first turn on. With `statusline-color` on, the coloured line sits above the
+off band when both show.
 
 ### The off band
 

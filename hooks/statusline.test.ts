@@ -6,7 +6,8 @@ const RESET = '2026-10-07T18:30:00Z'
 type World = { lines: (string | undefined)[]; clock: any; usage: any; calls: string[][] }
 
 function world(on: any, opts: { env?: Record<string, string>; stored?: Record<string, unknown>; rateLimits?: any[]; branch?: string; procVersion?: string; localtime?: string; powershell?: string; startedAt?: number } = {}): World {
-  mock.store(on, opts.stored ?? {})
+  // The plain line under the prompt unless a test asks for the coloured band.
+  mock.store(on, { 'statusline-color': false, ...opts.stored })
   mock.env(on, opts.env ?? {})
   const clock = mock.clock(on, { now: START + 23 * 60000 })
   const usage = {
@@ -43,7 +44,7 @@ const START_EVENT = { cwd: '/work', surface: 'terminal', isInteractive: true }
 test('measure draws model, ctx, duration, limit in the local zone and branch', async ($, on) => {
   const w = world(on, { env: { STATUSLINE_TZ: 'America/Sao_Paulo' }, branch: 'main' })
   await $.session.measure(MEASURE)
-  expect(w.lines.at(-1)).toBe('opus · ctx:14% 28k · 23m · limit:42% ↺ 15:30 · main')
+  expect(w.lines.at(-1)).toBe('opus · ctx:14% 28k · 23m · limit:42% ↺ 15:30 ·  main')
 })
 
 test('session start draws too', async ($, on) => {
@@ -82,7 +83,7 @@ test('effort shows once a turn step reported it', async ($, on) => {
   })
   for await (const _chunk of $.turn.step({ turnId: 't', index: 0, model: 'opus', effort: 'high', messageCount: 1 })) void _chunk
   await $.session.measure(MEASURE)
-  expect(w.lines.at(-1)).toContain('opus (high)')
+  expect(w.lines.at(-1)).toContain('opus [High]')
 })
 
 test('STATUSLINE_TZ beats the host zone', async ($, on) => {
@@ -121,4 +122,72 @@ test('off clears the line at once and stops drawing; on draws again', async ($, 
   expect(w.lines).toHaveLength(count)
   await $.command.run({ command: 'conan-mods', args: 'statusline on' })
   expect(w.lines.at(-1)).toBe('opus · ctx:14% 28k · 23m')
+})
+
+const DEFAULT = 'engine default'
+
+async function band($: any) {
+  return $.ui.mount({ plugin: 'conan-mods', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false } })
+}
+
+test('statusline-color on draws the line in colour above the prompt and clears the plain line', async ($, on) => {
+  const w = world(on, { stored: { 'statusline-color': true }, env: { STATUSLINE_TZ: 'UTC' }, branch: 'main' })
+  on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', children: [DEFAULT] }))
+  await $.session.measure(MEASURE)
+  expect(w.lines.at(-1)).toBeUndefined()
+  const ui = await band($)
+  expect((await ui.find({ type: 'Text', text: 'opus' }))?.props.color).toBe('claude')
+  expect((await ui.find({ type: 'Text', text: 'ctx:14% 28k' }))?.props.color).toBe('suggestion')
+  expect((await ui.find({ type: 'Text', text: 'limit:42% ↺ 18:30' }))?.props.color).toBe('success')
+  expect((await ui.find({ type: 'Text', text: ' main' }))?.props.color).toBe('merged')
+  expect(await ui.find({ type: 'Text', text: DEFAULT })).toBeUndefined()
+  await ui.unmount()
+})
+
+for (const [percent, color] of [[49, 'success'], [50, 'warning'], [79, 'warning'], [80, 'error']] as const) {
+  test(`a rate limit at ${percent}% is drawn ${color}`, async ($, on) => {
+    world(on, { stored: { 'statusline-color': true }, rateLimits: [{ kind: 'five_hour', percentUsed: percent }] })
+    on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', children: [DEFAULT] }))
+    await $.session.measure(MEASURE)
+    const ui = await band($)
+    expect((await ui.find({ type: 'Text', text: `limit:${percent}%` }))?.props.color).toBe(color)
+    await ui.unmount()
+  })
+}
+
+test('the coloured line sits above the off band when something is off', async ($, on) => {
+  world(on, { stored: { 'statusline-color': true, sound: false }, rateLimits: [] })
+  on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', children: [DEFAULT] }))
+  await $.session.measure(MEASURE)
+  const ui = await band($)
+  expect(await ui.find({ type: 'Text', text: 'opus' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '⚠ off: sound' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('statusline-color off moves the line back under the prompt; on moves it up again', async ($, on) => {
+  const w = world(on, { stored: { 'statusline-color': true }, rateLimits: [] })
+  on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', children: [DEFAULT] }))
+  await $.session.measure(MEASURE)
+  await $.command.run({ command: 'conan-mods', args: 'statusline-color off' })
+  expect(w.lines.at(-1)).toBe('opus · ctx:14% 28k · 23m')
+  let ui = await band($)
+  expect(await ui.find({ type: 'Text', text: 'opus' })).toBeUndefined()
+  await ui.unmount()
+  await $.command.run({ command: 'conan-mods', args: 'statusline-color on' })
+  expect(w.lines.at(-1)).toBeUndefined()
+  ui = await band($)
+  expect(await ui.find({ type: 'Text', text: 'opus' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('statusline off clears the coloured line too', async ($, on) => {
+  world(on, { stored: { 'statusline-color': true }, rateLimits: [] })
+  on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', children: [DEFAULT] }))
+  await $.session.measure(MEASURE)
+  await $.command.run({ command: 'conan-mods', args: 'statusline off' })
+  const ui = await band($)
+  expect(await ui.find({ type: 'Text', text: 'opus' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: '⚠ off: statusline' })).toBeDefined()
+  await ui.unmount()
 })

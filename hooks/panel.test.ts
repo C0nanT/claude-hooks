@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-const NAMES = ['caveman', 'git-guard', 'dotenv-guard', 'secret-guard', 'rm-guard', 'sound', 'statusline']
+const NAMES = ['caveman', 'git-guard', 'dotenv-guard', 'secret-guard', 'rm-guard', 'sound', 'statusline', 'statusline-color']
 const DEFAULT = 'engine default'
 
 for (const surface of ['terminal', 'vscode'] as const) {

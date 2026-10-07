@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { buildStatusLine, chooseTimezone, formatDuration, formatResetTime, formatTokens, parseWindowsTimezone, pickHostTimezone } from './statusline-rules'
+import { buildStatusLine, buildStatusSegments, chooseTimezone, formatModel, limitTone, formatDuration, formatResetTime, formatTokens, parseWindowsTimezone, pickHostTimezone } from './statusline-rules'
 
 test('duration: minutes under an hour, 1h05m from there', () => {
   expect(formatDuration(0)).toBe('0m')
@@ -34,7 +34,7 @@ test('the full line, left to right', () => {
     timezone: 'America/Sao_Paulo',
     branch: 'main',
   })
-  expect(line).toBe('opus (high) · ctx:14% 28k · 23m · limit:42% ↺ 15:30 · main')
+  expect(line).toBe('opus [High] · ctx:14% 28k · 23m · limit:42% ↺ 15:30 ·  main')
 })
 
 test('a field with no data is omitted', () => {
@@ -59,4 +59,34 @@ test('STATUSLINE_TZ beats host, host beats Windows', () => {
   expect(chooseTimezone('Asia/Tokyo', 'America/Sao_Paulo', 'Etc/GMT+3')).toBe('Asia/Tokyo')
   expect(chooseTimezone(' ', 'America/Sao_Paulo', 'Etc/GMT+3')).toBe('America/Sao_Paulo')
   expect(chooseTimezone(undefined, undefined, 'Etc/GMT+3')).toBe('Etc/GMT+3')
+})
+
+test('rate limit tone: green under 50, yellow to 79, red from 80', () => {
+  expect(limitTone(0)).toBe('limit-low')
+  expect(limitTone(49)).toBe('limit-low')
+  expect(limitTone(50)).toBe('limit-mid')
+  expect(limitTone(79)).toBe('limit-mid')
+  expect(limitTone(80)).toBe('limit-high')
+})
+
+test('segments carry the same text as the line, each with its tone', () => {
+  const segments = buildStatusSegments({ model: 'opus', contextPercent: 14, durationMs: 60000, fiveHourPercent: 79.6, branch: 'main' })
+  expect(segments).toEqual([
+    { text: 'opus', tone: 'model' },
+    { text: 'ctx:14%', tone: 'context' },
+    { text: '1m', tone: 'duration' },
+    { text: 'limit:80%', tone: 'limit-high' },
+    { text: ' main', tone: 'branch' },
+  ])
+})
+
+test('effort is written right of the model', () => {
+  expect(formatModel('opus', undefined)).toBe('opus')
+  expect(formatModel('opus', 'low')).toBe('opus [Low]')
+  expect(formatModel('opus', 'medium')).toBe('opus [Medium]')
+  expect(formatModel('opus', 'high')).toBe('opus [High]')
+  expect(formatModel('opus', 'xhigh')).toBe('opus [XHigh]')
+  expect(formatModel('opus', 'max')).toBe('opus [Max]')
+  expect(formatModel('opus', 'turbo')).toBe('opus (turbo)')
+  expect(formatModel('opus', 3)).toBe('opus (3)')
 })
