@@ -11,11 +11,11 @@
 
 **Blocked by:** None (can start immediately)
 
-Status: ready-for-agent
+Status: ready-for-human
 
-- [ ] `/conan-mods` sem argumento abre o pane e a resposta ainda traz a lista `nome: on|off`.
-- [ ] O pane mostra uma linha por nome de `TOGGLE_NAMES`, com o estado atual.
-- [ ] Apertar o botão de `git-guard` desliga a função: o pane mostra `off`, a faixa mostra `⚠ off: git-guard` e um `git push` passa. Apertar de novo religa.
-- [ ] O mesmo teste passa nas superfícies `terminal` e `vscode`.
-- [ ] `/conan-mods git-guard off` e entradas inválidas respondem como hoje.
-- [ ] README atualizado; `claude plugin validate .` e `claude plugin test .` passam.
+- [x] `/conan-mods` sem argumento abre o pane e a resposta ainda traz a lista `nome: on|off`.
+- [x] O pane mostra uma linha por nome de `TOGGLE_NAMES`, com o estado atual.
+- [x] Apertar o botão de `git-guard` desliga a função: o pane mostra `off`, a faixa mostra `⚠ off: git-guard` e um `git push` passa. Apertar de novo religa.
+- [x] O mesmo teste passa nas superfícies `terminal` e `vscode`.
+- [x] `/conan-mods git-guard off` e entradas inválidas respondem como hoje.
+- [x] README atualizado; `claude plugin validate .` e `claude plugin test .` passam.

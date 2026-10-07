@@ -36,3 +36,11 @@ test('the next draw after /conan-mods reflects the change', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: /off:/ })).toBeUndefined()
   await ui.unmount()
 })
+
+test('statusline off is listed last in the band', async ($, on) => {
+  mock.store(on, { sound: false, statusline: false })
+  on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', children: [DEFAULT] }))
+  const ui = await band($)
+  expect(await ui.find({ type: 'Text', text: '⚠ off: sound · statusline' })).toBeDefined()
+  await ui.unmount()
+})

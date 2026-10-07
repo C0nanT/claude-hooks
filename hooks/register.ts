@@ -1,11 +1,14 @@
 import type { EngineInterface, Register } from 'claude-code'
 import { BASH_BLOCKED_MESSAGE, bashReferencesEnv, DOTENV_FILE_TOOLS, fileBlockedMessage, isBlockedEnvPath } from './dotenv-guard-rules'
 import { blockedMessage, matchDangerous } from './git-guard-rules'
+import { matchRmDangerous, rmBlockedMessage } from './rm-guard-rules'
 import { matchSecretCommand, matchSecretPath, SECRET_FILE_TOOLS, secretBlockedMessage } from './secret-guard-rules'
 import { isWsl, SOUND_DEBOUNCE_MS, ubuntuCommands, wslCommand } from './sound-rules'
+import { buildStatusLine, chooseTimezone, parseWindowsTimezone, pickHostTimezone } from './statusline-rules'
 import { listText, offBandText, parseModsArgs, TOGGLE_NAMES, usageText } from './toggles'
 import type { ToggleName, Toggles } from './toggles'
 
+const PANE_ID = 'conan-mods'
 const toggles = { plugin: 'conan-mods', key: 'toggles' } as const
 
 // These helpers stay in this file: `$` is only followed into functions declared here.
@@ -26,6 +29,14 @@ async function setToggle($: EngineInterface, name: ToggleName, isOn: boolean): P
   await $.store.set(name, isOn)
   await $.state.set(toggles, { ...current, [name]: isOn })
   $.ui.invalidate('ui.render')
+}
+
+/** Switches one function by the path the text command and the pane's buttons share. */
+async function applyToggle($: EngineInterface, state: StatusLineState, name: ToggleName, isOn: boolean): Promise<void> {
+  await setToggle($, name, isOn)
+  if (name !== 'statusline') return
+  if (isOn) await drawStatusLine($, state)
+  else $.ui.status(undefined)
 }
 
 const CAVEMAN_WARNING = 'caveman: skill não encontrada, rode `npx skills@latest add C0nanT/skills`'
@@ -68,6 +79,85 @@ async function readHome($: EngineInterface): Promise<string> {
   }
 }
 
+/** The session's directory, or an empty string when it cannot be read. */
+async function readCwd($: EngineInterface): Promise<string> {
+  try {
+    return await $.session.cwd()
+  } catch {
+    return ''
+  }
+}
+
+type StatusLineState = {
+  effort?: string | number
+  timezone?: string
+  isTimezoneResolved: boolean
+}
+
+/** Trimmed stdout of a command that exited 0; undefined when it failed or cannot start. */
+async function outputOf($: EngineInterface, argv: readonly string[]): Promise<string | undefined> {
+  try {
+    const result = await $.process.run(argv)
+    return result.exitCode === 0 ? result.stdout.trim() : undefined
+  } catch {
+    return undefined
+  }
+}
+
+async function readText($: EngineInterface, path: string): Promise<string | undefined> {
+  try {
+    return await $.fs.read(path)
+  } catch {
+    return undefined
+  }
+}
+
+/** The zone the reset time is drawn in, read once per session: STATUSLINE_TZ, the host, then Windows under WSL. */
+async function resolveTimezone($: EngineInterface, state: StatusLineState): Promise<string | undefined> {
+  if (state.isTimezoneResolved) return state.timezone
+  const override = await $.env.get('STATUSLINE_TZ')
+  let host: string | undefined
+  let windows: string | undefined
+  if ((override ?? '').trim() === '') {
+    host = pickHostTimezone([
+      await outputOf($, ['timedatectl', 'show', '-p', 'Timezone', '--value']),
+      await readText($, '/etc/timezone'),
+      await outputOf($, ['readlink', '/etc/localtime']),
+    ])
+    if (host === undefined && isWsl(await readProcVersion($), await $.env.get('WSL_DISTRO_NAME'))) {
+      const output = await outputOf($, ['powershell.exe', '-NoProfile', '-Command', "[TimeZoneInfo]::Local.Id + '|' + [TimeZoneInfo]::Local.BaseUtcOffset.TotalMinutes"])
+      windows = output === undefined ? undefined : parseWindowsTimezone(output)
+    }
+  }
+  state.timezone = chooseTimezone(override, host, windows)
+  state.isTimezoneResolved = true
+  return state.timezone
+}
+
+/** Draws the status line from the session's usage; leaves the line as it was when anything throws. */
+async function drawStatusLine($: EngineInterface, state: StatusLineState): Promise<void> {
+  try {
+    const usage = await $.session.usage()
+    const fiveHour = usage.rateLimits.find(limit => limit.kind === 'five_hour')
+    const branch = await outputOf($, ['git', 'branch', '--show-current'])
+    $.ui.status(
+      buildStatusLine({
+        model: await $.session.model(),
+        effort: state.effort,
+        contextPercent: usage.context.percent,
+        contextTokens: usage.context.tokens,
+        durationMs: (await $.clock.now()) - usage.startedAt,
+        fiveHourPercent: fiveHour?.percentUsed,
+        fiveHourResetsAt: fiveHour?.resetsAt,
+        timezone: fiveHour?.resetsAt === undefined ? undefined : await resolveTimezone($, state),
+        branch,
+      }),
+    )
+  } catch {
+    // A failed measurement keeps the previous line.
+  }
+}
+
 async function playDone($: EngineInterface): Promise<void> {
   if (isWsl(await readProcVersion($), await $.env.get('WSL_DISTRO_NAME'))) {
     await runs($, wslCommand())
@@ -79,18 +169,56 @@ async function playDone($: EngineInterface): Promise<void> {
 export const register: Register = on => {
   let isCavemanWarned = false
   let lastSoundAt: number | undefined
+  const statusLine: StatusLineState = { isTimezoneResolved: false }
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'conan-mods', description: 'List or switch the conan-mods functions', argumentHint: '[<name> on|off]' })
-    return next(e)
+    const result = await next(e)
+    if ((await readToggles($)).statusline) await drawStatusLine($, statusLine)
+    return result
+  })
+
+  on('session.measure', async ($, e, next) => {
+    const result = await next(e)
+    if ((await readToggles($)).statusline) await drawStatusLine($, statusLine)
+    return result
+  }).catch(($, e, next) => next(e))
+
+  on('turn.step', async function* ($, e, next) {
+    if (e.agentId === undefined) statusLine.effort = e.effort
+    return yield* next(e)
   })
 
   on('command.run', { command: 'conan-mods' }, async ($, e) => {
     const command = parseModsArgs(e.args)
     if (command.kind === 'usage') return { text: usageText() }
-    if (command.kind === 'list') return { text: listText(await readToggles($)) }
-    await setToggle($, command.name, command.isOn)
+    if (command.kind === 'list') {
+      try {
+        await $.ui.open({ id: PANE_ID, title: 'conan-mods', focus: true, closeOnEscape: true })
+      } catch {
+        // Where the pane cannot open, the text list below is the answer.
+      }
+      return { text: listText(await readToggles($)) }
+    }
+    await applyToggle($, statusLine, command.name, command.isOn)
     return { text: `${command.name}: ${command.isOn ? 'on' : 'off'}` }
+  })
+
+  on('ui.render', { component: 'Pane', requestId: PANE_ID }, async ($, e) => {
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const current = await readToggles($)
+    return Box({
+      flexDirection: 'column',
+      children: TOGGLE_NAMES.map(name =>
+        Box({
+          key: `row-${name}`,
+          children: [
+            Text({ children: `${name}: ${current[name] ? 'on' : 'off'} ` }),
+            Button({ key: name, label: current[name] ? 'turn off' : 'turn on', onPress: async () => applyToggle($, statusLine, name, !(await readToggles($))[name]) }),
+          ],
+        }),
+      ),
+    })
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -130,6 +258,12 @@ export const register: Register = on => {
     const match = matchSecretCommand(e.command, await readHome($))
     return match === undefined ? next(e) : { deny: secretBlockedMessage(match.path, match.rule) }
   }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: secret-guard failed, command blocked.` }))
+
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    if (!(await readToggles($))['rm-guard']) return next(e)
+    const pattern = matchRmDangerous(e.command, await readCwd($))
+    return pattern === undefined ? next(e) : { deny: rmBlockedMessage(e.command, pattern) }
+  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: rm-guard failed, command blocked.` }))
 
   on('prompt.compose', async ($, e, next) => {
     const result = await next(e)

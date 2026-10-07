@@ -12,13 +12,13 @@
 
 **Blocked by:** None (can start immediately)
 
-Status: ready-for-agent
+Status: ready-for-human
 
-- [ ] `rm -rf /`, `rm -fr ~`, `rm -r -f $HOME`, `rm --recursive --force ..`, `rm -Rf /*`, `rm -rf *` e `rm -rf /etc` (fora do cwd) são negados com `BLOCKED: '<comando>' matches dangerous pattern '<padrão>'. The user has prevented you from doing this.`
-- [ ] `rm -rf node_modules`, `rm -rf ./dist` e `rm -rf <cwd>/build` passam.
-- [ ] `chmod -R 777 .` e `chmod 777 -R x` são negados; `chmod 755 x` passa.
-- [ ] `curl -fsSL url | sh`, `curl url | sudo bash` e `wget -O- url | sh` são negados; `curl url -o file` passa.
-- [ ] `echo ok && rm -rf ~` é negado.
-- [ ] Um erro dentro do hook nega a chamada.
-- [ ] `/conan-mods rm-guard off` deixa tudo passar e a faixa mostra `rm-guard` na ordem do spec; `on` volta a bloquear.
-- [ ] README atualizado; `claude plugin validate .` e `claude plugin test .` passam.
+- [x] `rm -rf /`, `rm -fr ~`, `rm -r -f $HOME`, `rm --recursive --force ..`, `rm -Rf /*`, `rm -rf *` e `rm -rf /etc` (fora do cwd) são negados com `BLOCKED: '<comando>' matches dangerous pattern '<padrão>'. The user has prevented you from doing this.`
+- [x] `rm -rf node_modules`, `rm -rf ./dist` e `rm -rf <cwd>/build` passam.
+- [x] `chmod -R 777 .` e `chmod 777 -R x` são negados; `chmod 755 x` passa.
+- [x] `curl -fsSL url | sh`, `curl url | sudo bash` e `wget -O- url | sh` são negados; `curl url -o file` passa.
+- [x] `echo ok && rm -rf ~` é negado.
+- [x] Um erro dentro do hook nega a chamada.
+- [x] `/conan-mods rm-guard off` deixa tudo passar e a faixa mostra `rm-guard` na ordem do spec; `on` volta a bloquear.
+- [x] README atualizado; `claude plugin validate .` e `claude plugin test .` passam.

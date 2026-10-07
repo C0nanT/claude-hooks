@@ -12,13 +12,19 @@
 
 **Blocked by:** None (can start immediately)
 
-Status: ready-for-agent
+Status: ready-for-human
 
-- [ ] Com uso `ctx 14%`, 28k tokens, sessão de 23 min e `five_hour` em 42% com reset `18:30Z` em `America/Sao_Paulo`, a linha contém `ctx:14% 28k`, `23m` e `limit:42% ↺ 15:30`.
-- [ ] Duração acima de uma hora sai como `1h05m`.
-- [ ] Sem rate limit, sem effort ou fora de repo git, o campo correspondente não aparece.
-- [ ] Depois de um `/clear` (novo início de sessão), a duração recomeça do zero.
-- [ ] `STATUSLINE_TZ` vence a detecção; no WSL com Linux em UTC, o fuso vem do PowerShell.
-- [ ] `/conan-mods statusline off` limpa a linha na hora e a faixa mostra `statusline`; `on` volta a desenhar.
-- [ ] Resposta sobre modelo, effort e cor registrada neste ticket.
-- [ ] README e `TODO.md` atualizados; `claude plugin validate .` e `claude plugin test .` passam.
+- [x] Com uso `ctx 14%`, 28k tokens, sessão de 23 min e `five_hour` em 42% com reset `18:30Z` em `America/Sao_Paulo`, a linha contém `ctx:14% 28k`, `23m` e `limit:42% ↺ 15:30`.
+- [x] Duração acima de uma hora sai como `1h05m`.
+- [x] Sem rate limit, sem effort ou fora de repo git, o campo correspondente não aparece.
+- [x] Depois de um `/clear` (novo início de sessão), a duração recomeça do zero.
+- [x] `STATUSLINE_TZ` vence a detecção; no WSL com Linux em UTC, o fuso vem do PowerShell.
+- [x] `/conan-mods statusline off` limpa a linha na hora e a faixa mostra `statusline`; `on` volta a desenhar.
+- [x] Resposta sobre modelo, effort e cor registrada neste ticket.
+- [x] README e `TODO.md` atualizados; `claude plugin validate .` e `claude plugin test .` passam.
+
+## Engine findings
+
+- Model: exposed. `$.session.model()` returns the main loop's model as `/model` shows it.
+- Effort: exposed only on `turn.step` (`e.effort`, absent for a model without effort); there is no `$.session` getter. The plugin keeps the last main-loop value (no `agentId`) from a `turn.step` hook, so effort appears from the first turn on and is omitted before it.
+- Colour: `$.ui.status(text)` takes a plain string and documents no colour or ANSI support, so the line is uncoloured and the rate-limit colour thresholds do not apply.
