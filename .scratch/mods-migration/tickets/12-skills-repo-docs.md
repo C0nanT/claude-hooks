@@ -20,4 +20,4 @@ Status: ready-for-agent
 - [x] O README do repo de skills mostra o comando de instalação do plugin e o `/conan-mods`.
 - [x] Nenhuma menção a `npx @c0nant/claude-hooks install` resta nos guias.
 - [x] A skill caveman não foi alterada.
-- [ ] O PR foi aberto no repo de skills (confirmar com o dono antes do push).
+- [x] O PR foi aberto no repo de skills (confirmar com o dono antes do push).
