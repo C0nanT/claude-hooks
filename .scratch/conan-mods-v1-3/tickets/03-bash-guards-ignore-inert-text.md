@@ -18,12 +18,12 @@ Kept and analysed: heredoc bodies, `-c` arguments and piped text that go to a sh
 
 **Blocked by:** 01 (shared fail-closed helper)
 
-Status: ready-for-agent
+Status: ready-for-human
 
-- [ ] Allowed: `node -e` code mentioning `row.key`; `cat > notes.md <<'EOF'` with a body mentioning `.env`, `id_rsa`, `git push` and `rm -rf /`; `git commit -m "..."` and `git commit -F - <<EOF` messages mentioning `git push`, `.env` and `rm -rf`; `python3 - <<EOF` with a body mentioning `~/.ssh/id_rsa`.
-- [ ] Still blocked: `bash <<EOF` / `sh <<EOF` with a guarded command in the body; `bash -c`, `sh -c` and `eval` with a guarded command; `echo '<guarded command>' | bash`; `git commit -m "x" && git push`; `git commit -m "x"; cat .env`; a guarded command on the same line after a non-shell heredoc ends.
-- [ ] An unterminated heredoc or unbalanced quote is analysed as the whole command (a guarded word anywhere still blocks).
-- [ ] Each of the four Bash guards uses the extracted text; file-tool guards are unchanged.
-- [ ] Every existing guard test still passes.
-- [ ] README states, once, that the Bash guards skip heredoc bodies, commit messages and inline interpreter code unless they go to a shell.
-- [ ] `claude plugin validate .` and `claude plugin test .` pass.
+- [x] Allowed: `node -e` code mentioning `row.key`; `cat > notes.md <<'EOF'` with a body mentioning `.env`, `id_rsa`, `git push` and `rm -rf /`; `git commit -m "..."` and `git commit -F - <<EOF` messages mentioning `git push`, `.env` and `rm -rf`; `python3 - <<EOF` with a body mentioning `~/.ssh/id_rsa`.
+- [x] Still blocked: `bash <<EOF` / `sh <<EOF` with a guarded command in the body; `bash -c`, `sh -c` and `eval` with a guarded command; `echo '<guarded command>' | bash`; `git commit -m "x" && git push`; `git commit -m "x"; cat .env`; a guarded command on the same line after a non-shell heredoc ends.
+- [x] An unterminated heredoc or unbalanced quote is analysed as the whole command (a guarded word anywhere still blocks).
+- [x] Each of the four Bash guards uses the extracted text; file-tool guards are unchanged.
+- [x] Every existing guard test still passes.
+- [x] README states, once, that the Bash guards skip heredoc bodies, commit messages and inline interpreter code unless they go to a shell.
+- [x] `claude plugin validate .` and `claude plugin test .` pass.

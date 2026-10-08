@@ -1,4 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
+import { executedText } from './bash-text-rules'
 import { BASH_BLOCKED_MESSAGE, bashReferencesEnv, DOTENV_FILE_TOOLS, fileBlockedMessage, isBlockedEnvPath } from './dotenv-guard-rules'
 import { blockedMessage, matchDangerous } from './git-guard-rules'
 import { matchRmDangerous, rmBlockedMessage } from './rm-guard-rules'
@@ -281,7 +282,7 @@ export const register: Register = on => {
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!(await readToggles($))['git-guard']) return next(e)
-    const pattern = matchDangerous(e.command)
+    const pattern = matchDangerous(executedText(e.command))
     return pattern === undefined ? next(e) : { deny: blockedMessage(e.command, pattern) }
   }).catch(($, e, next) => failClosed($, e, next, 'git-guard', 'command'))
 
@@ -293,7 +294,7 @@ export const register: Register = on => {
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!(await readToggles($))['dotenv-guard']) return next(e)
-    return bashReferencesEnv(e.command) ? { deny: BASH_BLOCKED_MESSAGE } : next(e)
+    return bashReferencesEnv(executedText(e.command)) ? { deny: BASH_BLOCKED_MESSAGE } : next(e)
   }).catch(($, e, next) => failClosed($, e, next, 'dotenv-guard', 'command'))
 
   on('tool.call', { tool: [...SECRET_FILE_TOOLS] }, async ($, e, next) => {
@@ -307,7 +308,7 @@ export const register: Register = on => {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!(await readToggles($))['secret-guard']) return next(e)
     const home = await readHome($)
-    for (const match of matchSecretCommand(e.command, home)) {
+    for (const match of matchSecretCommand(executedText(e.command), home)) {
       if (isExtensionRule(match.rule) && !(await pathExists($, resolveCommandPath(match.path, home, await readCwd($))))) continue
       return { deny: secretBlockedMessage(match.path, match.rule) }
     }
@@ -316,7 +317,7 @@ export const register: Register = on => {
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!(await readToggles($))['rm-guard']) return next(e)
-    const pattern = matchRmDangerous(e.command, await readCwd($))
+    const pattern = matchRmDangerous(executedText(e.command), await readCwd($))
     return pattern === undefined ? next(e) : { deny: rmBlockedMessage(e.command, pattern) }
   }).catch(($, e, next) => failClosed($, e, next, 'rm-guard', 'command'))
 

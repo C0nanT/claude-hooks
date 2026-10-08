@@ -14,6 +14,8 @@ eight functions:
 | `statusline` | Draws the plugin's status line under the prompt: model, with the effort on its right when known (`[Low]`, `[Medium]`, `[High]`, `[XHigh]`, `[Max]`; it appears after the first turn, since the engine reports effort only then), `ctx:<pct>% <tokens>k`, session duration (`23m`, `1h05m`), `limit:<pct>% ↺ HH:MM` for the 5-hour rate-limit window and the git branch after the Nerd Font branch icon (` main`; without a Nerd Font it shows as a box). A field with no data is left out. Updates when the session opens and after each measurement; the duration restarts on `/clear`. Drawn in colour above the prompt while `statusline-color` is on, as plain text under it otherwise. |
 | `statusline-color` | Draws the status line in colour in a band above the prompt: the model in bold, the rate limit green under 50%, yellow to 79% and red from 80%. Off, the line goes back under the prompt as plain text (that line cannot take colour). Does nothing while `statusline` is off. |
 
+The four Bash guards (`git-guard`, `dotenv-guard`, `secret-guard`, `rm-guard`) check only the text the shell runs: they skip heredoc bodies fed to `cat`, `tee`, an interpreter or `git commit`, commit messages (`-m`, `--message`, `-F -`), and inline interpreter code (`node -e`, `python -c`, `ruby -e`, `perl -e`), unless that text goes to a shell (`bash <<EOF`, `sh -c`, `eval`, `| bash`). A command they cannot parse is checked whole.
+
 ## Install
 
 Inside Claude Code:
