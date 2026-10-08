@@ -107,3 +107,46 @@ test('/conan-mods secret-guard off lets it pass, on blocks again, band shows it'
   expect((await $.tool.call({ tool: 'Read', file_path: `${HOME}/.ssh/id_rsa` })).deny).toContain('BLOCKED')
   expect((await run('')).text).toContain('secret-guard: on')
 })
+
+const MISSING_HOME = /HOME could not be read/
+const NO_HOME: [string, (on: any) => void][] = [
+  ['empty', on => mock.env(on, { HOME: '' })],
+  ['unreadable', on => on('env.get', () => ({ deny: 'EACCES' }))],
+]
+
+for (const [label, stubHome] of NO_HOME) {
+  const setupNoHome = (on: any) => {
+    mock.store(on)
+    stubHome(on)
+    on('session.cwd', () => ({ value: CWD }))
+    on('fs.exists', (_$: any, e: any) => ({ value: EXISTING.includes(e.path) }))
+    on('tool.call', () => ({ result: 'ran', text: 'ran' }))
+  }
+
+  test(`HOME ${label}: home-anchored file paths are denied naming HOME`, async ($, on) => {
+    setupNoHome(on)
+    for (const file_path of ['~/.ssh/known_hosts', '~/.ssh/id_ed25519', '$HOME/.aws/credentials', '/home/test/.config/gcloud/creds.db', '/home/test/.docker/config.json']) {
+      expect((await $.tool.call({ tool: 'Read', file_path })).deny).toMatch(MISSING_HOME)
+    }
+  })
+
+  test(`HOME ${label}: home-anchored bash tokens are denied naming HOME`, async ($, on) => {
+    setupNoHome(on)
+    for (const command of ['cat $HOME/.aws/credentials', 'cat ${HOME}/.azure/x', 'cat /home/test/.ssh/config']) {
+      expect((await $.tool.call({ tool: 'Bash', command })).deny).toMatch(MISSING_HOME)
+    }
+  })
+
+  test(`HOME ${label}: ordinary calls still pass`, async ($, on) => {
+    setupNoHome(on)
+    expect((await $.tool.call({ tool: 'Read', file_path: '/project/README.md' })).text).toBe('ran')
+    expect((await $.tool.call({ tool: 'Bash', command: 'echo hello' })).text).toBe('ran')
+  })
+
+  test(`HOME ${label}: HOME-independent rules deny with their usual rule`, async ($, on) => {
+    setupNoHome(on)
+    expect((await $.tool.call({ tool: 'Read', file_path: '/anywhere/id_rsa' })).deny).toContain("secret rule 'id_rsa'")
+    expect((await $.tool.call({ tool: 'Read', file_path: '/project/.npmrc' })).deny).toContain("secret rule '.npmrc'")
+    expect((await $.tool.call({ tool: 'Bash', command: 'cat server.pem' })).deny).toContain("secret rule '*.pem'")
+  })
+}
