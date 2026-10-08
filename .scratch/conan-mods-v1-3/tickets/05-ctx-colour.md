@@ -12,10 +12,10 @@
 
 **Blocked by:** None (can start immediately)
 
-Status: ready-for-agent
+Status: ready-for-human
 
-- [ ] `ctx` at 49%, 50%, 79% and 80% is drawn `success`, `warning`, `warning`, `error`.
-- [ ] Rate limit and ctx use one shared threshold function.
-- [ ] The plain line text is unchanged.
-- [ ] README's statusline-color row mentions the ctx colours.
-- [ ] `claude plugin validate .` and `claude plugin test .` pass.
+- [x] `ctx` at 49%, 50%, 79% and 80% is drawn `success`, `warning`, `warning`, `error`.
+- [x] Rate limit and ctx use one shared threshold function.
+- [x] The plain line text is unchanged.
+- [x] README's statusline-color row mentions the ctx colours.
+- [x] `claude plugin validate .` and `claude plugin test .` pass.

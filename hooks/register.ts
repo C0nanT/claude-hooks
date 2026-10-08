@@ -5,7 +5,7 @@ import { blockedMessage, matchDangerous } from './git-guard-rules'
 import { matchRmDangerous, rmBlockedMessage } from './rm-guard-rules'
 import { isExtensionRule, matchSecretCommand, matchSecretPath, resolveCommandPath, SECRET_FILE_TOOLS, secretBlockedMessage } from './secret-guard-rules'
 import { isWsl, SOUND_DEBOUNCE_MS, ubuntuCommands, wslCommand } from './sound-rules'
-import { buildStatusSegments, chooseTimezone, parseWindowsTimezone, pickHostTimezone, SEGMENT_SEPARATOR, TONE_COLORS } from './statusline-rules'
+import { buildStatusSegments, chooseTimezone, parseWindowsTimezone, pickHostTimezone, SEGMENT_SEPARATOR, settingsEffort, TONE_COLORS } from './statusline-rules'
 import type { StatusSegment } from './statusline-rules'
 import { listText, offBandText, parseModsArgs, TOGGLE_NAMES, usageText } from './toggles'
 import type { ToggleName, Toggles } from './toggles'
@@ -113,6 +113,9 @@ type StatusLineState = {
   segments?: StatusSegment[]
   timezone?: string
   isTimezoneResolved: boolean
+  /** The parsed ~/.claude/settings.json, read once per session; undefined when missing or invalid. */
+  settings?: unknown
+  isSettingsRead: boolean
 }
 
 /** Trimmed stdout of a command that exited 0; undefined when it failed or cannot start. */
@@ -131,6 +134,20 @@ async function readText($: EngineInterface, path: string): Promise<string | unde
   } catch {
     return undefined
   }
+}
+
+/** The user's ~/.claude/settings.json, parsed and read once per session; undefined when missing, unreadable or invalid. */
+async function readUserSettings($: EngineInterface, state: StatusLineState): Promise<unknown> {
+  if (state.isSettingsRead) return state.settings
+  state.isSettingsRead = true
+  try {
+    const home = await readHome($)
+    const text = home === '' ? undefined : await readText($, `${home}/.claude/settings.json`)
+    state.settings = text === undefined ? undefined : JSON.parse(text)
+  } catch {
+    state.settings = undefined
+  }
+  return state.settings
 }
 
 /** The zone the reset time is drawn in, read once per session: STATUSLINE_TZ, the host, then Windows under WSL. */
@@ -172,9 +189,10 @@ async function drawStatusLine($: EngineInterface, state: StatusLineState): Promi
     const usage = await $.session.usage()
     const fiveHour = usage.rateLimits.find(limit => limit.kind === 'five_hour')
     const branch = await outputOf($, ['git', 'branch', '--show-current'])
+    const model = await $.session.model()
     const segments = buildStatusSegments({
-      model: await $.session.model(),
-      effort: state.effort,
+      model,
+      effort: state.effort ?? settingsEffort(await readUserSettings($, state), model),
       contextPercent: usage.context.percent,
       contextTokens: usage.context.tokens,
       durationMs: (await $.clock.now()) - usage.startedAt,
@@ -220,7 +238,7 @@ async function openPane($: EngineInterface): Promise<void> {
 export const register: Register = on => {
   let isCavemanWarned = false
   let lastSoundAt: number | undefined
-  const statusLine: StatusLineState = { isTimezoneResolved: false }
+  const statusLine: StatusLineState = { isTimezoneResolved: false, isSettingsRead: false }
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'conan-mods', description: 'List or switch the conan-mods functions', argumentHint: '[<name> on|off]' })

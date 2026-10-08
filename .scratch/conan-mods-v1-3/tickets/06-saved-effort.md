@@ -12,12 +12,12 @@
 
 **Blocked by:** None (can start immediately)
 
-Status: ready-for-agent
+Status: ready-for-human
 
-- [ ] At session start, with `modelSettings` giving `high` for the current model and top-level `medium`, the line shows `[High]`.
-- [ ] With no per-model entry, the top-level `effortLevel` is used.
-- [ ] After a turn reports `max`, the line shows `[Max]` even though the settings say `high`.
-- [ ] Missing, unreadable or invalid JSON settings: the model shows without effort and nothing throws.
-- [ ] The settings file is read at most once per session.
-- [ ] README's statusline row no longer says the effort only appears after the first turn; it says where the effort comes from.
-- [ ] `claude plugin validate .` and `claude plugin test .` pass.
+- [x] At session start, with `modelSettings` giving `high` for the current model and top-level `medium`, the line shows `[High]`.
+- [x] With no per-model entry, the top-level `effortLevel` is used.
+- [x] After a turn reports `max`, the line shows `[Max]` even though the settings say `high`.
+- [x] Missing, unreadable or invalid JSON settings: the model shows without effort and nothing throws.
+- [x] The settings file is read at most once per session.
+- [x] README's statusline row no longer says the effort only appears after the first turn; it says where the effort comes from.
+- [x] `claude plugin validate .` and `claude plugin test .` pass.
