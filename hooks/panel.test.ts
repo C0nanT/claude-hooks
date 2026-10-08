@@ -28,3 +28,40 @@ for (const surface of ['terminal', 'vscode'] as const) {
     await band.unmount()
   })
 }
+
+function openScenario(on: any, answer: (e: any) => unknown) {
+  mock.store(on)
+  const toasts: string[] = []
+  on('ui.toast', (_$: any, e: any) => {
+    toasts.push(e.text ?? e)
+    return { value: undefined } as never
+  })
+  on('ui.open', ((_$: any, e: any) => answer(e)) as never)
+  return toasts
+}
+
+test('/conan-mods opens the focused pane and keeps the text list', async ($, on) => {
+  const opens: unknown[] = []
+  const toasts = openScenario(on, e => {
+    opens.push(e)
+    return { value: { isPlaced: true } }
+  })
+  const out = await $.command.run({ command: 'conan-mods', args: '' })
+  expect(opens).toEqual([{ id: 'conan-mods', title: 'conan-mods', focus: true, closeOnEscape: true }])
+  expect(toasts).toEqual([])
+  for (const name of NAMES) expect(out.text).toContain(`${name}: on`)
+})
+
+test('/conan-mods toasts why when the engine defers the pane', async ($, on) => {
+  const toasts = openScenario(on, () => ({ value: { isPlaced: false, reason: 'terminal is 100 columns, needs 144' } }))
+  const out = await $.command.run({ command: 'conan-mods', args: '' })
+  expect(toasts.join('\n')).toContain('terminal is 100 columns, needs 144')
+  for (const name of NAMES) expect(out.text).toContain(`${name}: on`)
+})
+
+test('/conan-mods toasts why when opening the pane fails', async ($, on) => {
+  const toasts = openScenario(on, () => ({ deny: 'pane refused' }))
+  const out = await $.command.run({ command: 'conan-mods', args: '' })
+  expect(toasts.join('\n')).toContain('pane refused')
+  for (const name of NAMES) expect(out.text).toContain(`${name}: on`)
+})

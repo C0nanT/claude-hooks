@@ -207,6 +207,16 @@ async function playDone($: EngineInterface): Promise<void> {
   for (const argv of ubuntuCommands()) if (await runs($, argv)) return
 }
 
+/** Opens the focused pane; when the engine refuses or defers it, a toast says why. The text list stays the answer either way. */
+async function openPane($: EngineInterface): Promise<void> {
+  try {
+    const opened = await $.ui.open({ id: PANE_ID, title: 'conan-mods', focus: true, closeOnEscape: true })
+    if (!opened.isPlaced) $.ui.toast(`conan-mods pane is not shown yet: ${opened.reason}`)
+  } catch (e) {
+    $.ui.toast(`conan-mods pane could not open: ${e instanceof Error ? e.message : String(e)}`)
+  }
+}
+
 export const register: Register = on => {
   let isCavemanWarned = false
   let lastSoundAt: number | undefined
@@ -234,11 +244,7 @@ export const register: Register = on => {
     const command = parseModsArgs(e.args)
     if (command.kind === 'usage') return { text: usageText() }
     if (command.kind === 'list') {
-      try {
-        await $.ui.open({ id: PANE_ID, title: 'conan-mods', focus: true, closeOnEscape: true })
-      } catch {
-        // Where the pane cannot open, the text list below is the answer.
-      }
+      await openPane($)
       return { text: listText(await readToggles($)) }
     }
     await applyToggle($, statusLine, command.name, command.isOn)
