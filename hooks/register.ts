@@ -40,6 +40,14 @@ async function applyToggle($: EngineInterface, state: StatusLineState, name: Tog
   else clearStatusLine($, state)
 }
 
+/**
+ * The fail-closed body every guard's `.catch` shares: an error before `next` was called denies the call
+ * (`<plugin>: <guard> failed, <noun> blocked.`); after `next` the result passes through.
+ */
+function failClosed($: EngineInterface, e: unknown, next: ((e: unknown) => unknown) & { called: boolean }, guard: string, noun: 'command' | 'call') {
+  return next.called ? next(e) : { deny: `${$.plugin.name}: ${guard} failed, ${noun} blocked.` }
+}
+
 const CAVEMAN_WARNING = 'caveman: skill não encontrada, rode `npx skills@latest add C0nanT/skills`'
 
 /** The skill's text, or undefined when it cannot be read (missing, unreadable or empty). */
@@ -275,18 +283,18 @@ export const register: Register = on => {
     if (!(await readToggles($))['git-guard']) return next(e)
     const pattern = matchDangerous(e.command)
     return pattern === undefined ? next(e) : { deny: blockedMessage(e.command, pattern) }
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: git-guard failed, command blocked.` }))
+  }).catch(($, e, next) => failClosed($, e, next, 'git-guard', 'command'))
 
   on('tool.call', { tool: [...DOTENV_FILE_TOOLS] }, async ($, e, next) => {
     if (!(await readToggles($))['dotenv-guard']) return next(e)
     const path = typeof e.file_path === 'string' ? e.file_path : ''
     return path !== '' && isBlockedEnvPath(path) ? { deny: fileBlockedMessage(path) } : next(e)
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: dotenv-guard failed, call blocked.` }))
+  }).catch(($, e, next) => failClosed($, e, next, 'dotenv-guard', 'call'))
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!(await readToggles($))['dotenv-guard']) return next(e)
     return bashReferencesEnv(e.command) ? { deny: BASH_BLOCKED_MESSAGE } : next(e)
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: dotenv-guard failed, command blocked.` }))
+  }).catch(($, e, next) => failClosed($, e, next, 'dotenv-guard', 'command'))
 
   on('tool.call', { tool: [...SECRET_FILE_TOOLS] }, async ($, e, next) => {
     if (!(await readToggles($))['secret-guard']) return next(e)
@@ -294,7 +302,7 @@ export const register: Register = on => {
     if (path === '') return next(e)
     const rule = matchSecretPath(path, await readHome($))
     return rule === undefined ? next(e) : { deny: secretBlockedMessage(path, rule) }
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: secret-guard failed, call blocked.` }))
+  }).catch(($, e, next) => failClosed($, e, next, 'secret-guard', 'call'))
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!(await readToggles($))['secret-guard']) return next(e)
@@ -304,13 +312,13 @@ export const register: Register = on => {
       return { deny: secretBlockedMessage(match.path, match.rule) }
     }
     return next(e)
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: secret-guard failed, command blocked.` }))
+  }).catch(($, e, next) => failClosed($, e, next, 'secret-guard', 'command'))
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!(await readToggles($))['rm-guard']) return next(e)
     const pattern = matchRmDangerous(e.command, await readCwd($))
     return pattern === undefined ? next(e) : { deny: rmBlockedMessage(e.command, pattern) }
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: rm-guard failed, command blocked.` }))
+  }).catch(($, e, next) => failClosed($, e, next, 'rm-guard', 'command'))
 
   on('prompt.compose', async ($, e, next) => {
     const result = await next(e)

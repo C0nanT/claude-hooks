@@ -13,7 +13,7 @@
 
 Status: ready-for-agent
 
-- [ ] One helper in the hooks module builds the fail-closed `.catch` handler from the guard name and the noun (`command`/`call`).
-- [ ] All five guard handlers use it; no guard keeps its own inline `.catch` body.
-- [ ] Each guard's error message is byte-for-byte what it was before; a test per guard forces an error (e.g. an unreadable store) and asserts the exact message.
-- [ ] `claude plugin validate .` and `claude plugin test .` pass.
+- [x] One helper in the hooks module builds the fail-closed `.catch` handler from the guard name and the noun (`command`/`call`).
+- [x] All five guard handlers use it; no guard keeps its own inline `.catch` body.
+- [x] Each guard's error message is byte-for-byte what it was before; a test per guard forces an error (e.g. an unreadable store) and asserts the exact message.
+- [x] `claude plugin validate .` and `claude plugin test .` pass.
