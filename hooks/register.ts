@@ -109,6 +109,8 @@ async function readCwd($: EngineInterface): Promise<string> {
 
 type StatusLineState = {
   effort?: string | number
+  /** The model the last draw showed; a different one means the effort and settings read so far are stale. */
+  drawnModel?: string
   /** What the coloured band draws; undefined while the plain line is in use or nothing was drawn. */
   segments?: StatusSegment[]
   timezone?: string
@@ -172,6 +174,12 @@ async function resolveTimezone($: EngineInterface, state: StatusLineState): Prom
   return state.timezone
 }
 
+/** Forgets the effort a turn reported and the settings read, so the next draw reads them again. */
+function forgetEffort(state: StatusLineState): void {
+  state.effort = undefined
+  state.isSettingsRead = false
+}
+
 /** Clears both places the status line can be drawn. */
 function clearStatusLine($: EngineInterface, state: StatusLineState): void {
   $.ui.status(undefined)
@@ -190,6 +198,8 @@ async function drawStatusLine($: EngineInterface, state: StatusLineState): Promi
     const fiveHour = usage.rateLimits.find(limit => limit.kind === 'five_hour')
     const branch = await outputOf($, ['git', 'branch', '--show-current'])
     const model = await $.session.model()
+    if (state.drawnModel !== undefined && state.drawnModel !== model) forgetEffort(state)
+    state.drawnModel = model
     const segments = buildStatusSegments({
       model,
       effort: state.effort ?? settingsEffort(await readUserSettings($, state), model),
@@ -256,6 +266,7 @@ export const register: Register = on => {
   // A model or effort switch redraws at once; turn.start is the net for switches that reach neither (picker, fallback).
   on('command.run', { command: ['model', 'effort'] }, async ($, e, next) => {
     const result = await next(e)
+    if (e.command === 'effort') forgetEffort(statusLine)
     if ((await readToggles($)).statusline) await drawStatusLine($, statusLine)
     return result
   })

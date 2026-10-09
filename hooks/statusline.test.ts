@@ -283,3 +283,17 @@ test('a new turn redraws with the current model', async ($, on) => {
   await $.turn.start({ text: 'hi', turnId: 't' })
   expect(w.lines.at(-1)).toContain('Haiku 5.5 ·')
 })
+
+test('a model switch drops the effort the old model reported', async ($, on) => {
+  let model = 'opus'
+  const w = world(on, { env: { HOME: '/home/u' }, rateLimits: [], model: () => model, settings: JSON.stringify({ modelSettings: { opus: { effortLevel: 'high' }, sonnet: { effortLevel: 'low' } } }) })
+  on('turn.step', async function* () {
+    return { turnId: 't', index: 0, answer: '', toolUses: [] }
+  })
+  for await (const _chunk of $.turn.step({ turnId: 't', index: 0, model: 'opus', effort: 'max', messageCount: 1 })) void _chunk
+  await $.session.measure(MEASURE)
+  expect(w.lines.at(-1)).toContain('Opus - max')
+  model = 'sonnet'
+  await $.session.measure(MEASURE)
+  expect(w.lines.at(-1)).toContain('Sonnet - low')
+})
