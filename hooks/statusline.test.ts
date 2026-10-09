@@ -50,7 +50,7 @@ const START_EVENT = { cwd: '/work', surface: 'terminal', isInteractive: true }
 test('measure draws model, ctx, duration, limit in the local zone and branch', async ($, on) => {
   const w = world(on, { env: { STATUSLINE_TZ: 'America/Sao_Paulo' }, branch: 'main' })
   await $.session.measure(MEASURE)
-  expect(w.lines.at(-1)).toBe('opus · ctx:14% 28k · 23m · limit:42% ↺ 15:30 ·  main')
+  expect(w.lines.at(-1)).toBe('Opus · ctx:14% 28k · 23m · limit:42% ↺ 15:30 ·  main')
 })
 
 test('session start draws too', async ($, on) => {
@@ -69,7 +69,7 @@ test('over an hour reads 1h05m', async ($, on) => {
 test('no rate limit and no repo: those fields are omitted', async ($, on) => {
   const w = world(on, { rateLimits: [] })
   await $.session.measure(MEASURE)
-  expect(w.lines.at(-1)).toBe('opus · ctx:14% 28k · 23m')
+  expect(w.lines.at(-1)).toBe('Opus · ctx:14% 28k · 23m')
 })
 
 test('a new session start after /clear restarts the duration', async ($, on) => {
@@ -89,7 +89,7 @@ test('effort shows once a turn step reported it', async ($, on) => {
   })
   for await (const _chunk of $.turn.step({ turnId: 't', index: 0, model: 'opus', effort: 'high', messageCount: 1 })) void _chunk
   await $.session.measure(MEASURE)
-  expect(w.lines.at(-1)).toContain('opus [High]')
+  expect(w.lines.at(-1)).toContain('Opus - high')
 })
 
 const SAVED = JSON.stringify({ effortLevel: 'medium', modelSettings: { opus: { effortLevel: 'high' } } })
@@ -98,13 +98,13 @@ const settingsWorld = (on: any, settings?: string) => world(on, { env: { HOME: '
 test('session start shows the saved per-model effort over the top-level one', async ($, on) => {
   const w = settingsWorld(on, SAVED)
   await $.session.start(START_EVENT)
-  expect(w.lines.at(-1)).toContain('opus [High]')
+  expect(w.lines.at(-1)).toContain('Opus - high')
 })
 
 test('without a per-model entry the top-level effort is used', async ($, on) => {
   const w = settingsWorld(on, JSON.stringify({ effortLevel: 'medium', modelSettings: { sonnet: { effortLevel: 'low' } } }))
   await $.session.start(START_EVENT)
-  expect(w.lines.at(-1)).toContain('opus [Medium]')
+  expect(w.lines.at(-1)).toContain('Opus - medium')
 })
 
 test('a turn that reports effort beats the saved one', async ($, on) => {
@@ -115,27 +115,27 @@ test('a turn that reports effort beats the saved one', async ($, on) => {
   await $.session.start(START_EVENT)
   for await (const _chunk of $.turn.step({ turnId: 't', index: 0, model: 'opus', effort: 'max', messageCount: 1 })) void _chunk
   await $.session.measure(MEASURE)
-  expect(w.lines.at(-1)).toContain('opus [Max]')
+  expect(w.lines.at(-1)).toContain('Opus - max')
 })
 
 test('missing settings show the model without effort', async ($, on) => {
   const w = settingsWorld(on)
   await $.session.start(START_EVENT)
-  expect(w.lines.at(-1)).toContain('opus ·')
+  expect(w.lines.at(-1)).toContain('Opus ·')
   expect(w.lines.at(-1)).not.toContain('[')
 })
 
 test('unparseable settings show the model without effort', async ($, on) => {
   const w = settingsWorld(on, '{not json')
   await $.session.start(START_EVENT)
-  expect(w.lines.at(-1)).toContain('opus ·')
+  expect(w.lines.at(-1)).toContain('Opus ·')
   expect(w.lines.at(-1)).not.toContain('[')
 })
 
 test('non-object settings show the model without effort', async ($, on) => {
   const w = settingsWorld(on, 'null')
   await $.session.start(START_EVENT)
-  expect(w.lines.at(-1)).toContain('opus ·')
+  expect(w.lines.at(-1)).toContain('Opus ·')
   expect(w.lines.at(-1)).not.toContain('[')
 })
 
@@ -182,7 +182,7 @@ test('off clears the line at once and stops drawing; on draws again', async ($, 
   await $.session.measure(MEASURE)
   expect(w.lines).toHaveLength(count)
   await $.command.run({ command: 'conan-mods', args: 'statusline on' })
-  expect(w.lines.at(-1)).toBe('opus · ctx:14% 28k · 23m')
+  expect(w.lines.at(-1)).toBe('Opus · ctx:14% 28k · 23m')
 })
 
 const DEFAULT = 'engine default'
@@ -197,7 +197,7 @@ test('statusline-color on draws the line in colour above the prompt and clears t
   await $.session.measure(MEASURE)
   expect(w.lines.at(-1)).toBeUndefined()
   const ui = await band($)
-  expect((await ui.find({ type: 'Text', text: 'opus' }))?.props.color).toBe('claude')
+  expect((await ui.find({ type: 'Text', text: 'Opus' }))?.props.color).toBe('claude')
   expect((await ui.find({ type: 'Text', text: 'ctx:14% 28k' }))?.props.color).toBe('success')
   expect((await ui.find({ type: 'Text', text: 'limit:42% ↺ 18:30' }))?.props.color).toBe('success')
   expect((await ui.find({ type: 'Text', text: ' main' }))?.props.color).toBe('merged')
@@ -231,7 +231,7 @@ test('the coloured line sits above the off band when something is off', async ($
   on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', children: [DEFAULT] }))
   await $.session.measure(MEASURE)
   const ui = await band($)
-  expect(await ui.find({ type: 'Text', text: 'opus' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Opus' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '⚠ off: sound' })).toBeDefined()
   await ui.unmount()
 })
@@ -241,14 +241,14 @@ test('statusline-color off moves the line back under the prompt; on moves it up 
   on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', children: [DEFAULT] }))
   await $.session.measure(MEASURE)
   await $.command.run({ command: 'conan-mods', args: 'statusline-color off' })
-  expect(w.lines.at(-1)).toBe('opus · ctx:14% 28k · 23m')
+  expect(w.lines.at(-1)).toBe('Opus · ctx:14% 28k · 23m')
   let ui = await band($)
-  expect(await ui.find({ type: 'Text', text: 'opus' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: 'Opus' })).toBeUndefined()
   await ui.unmount()
   await $.command.run({ command: 'conan-mods', args: 'statusline-color on' })
   expect(w.lines.at(-1)).toBeUndefined()
   ui = await band($)
-  expect(await ui.find({ type: 'Text', text: 'opus' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Opus' })).toBeDefined()
   await ui.unmount()
 })
 
@@ -258,7 +258,7 @@ test('statusline off clears the coloured line too', async ($, on) => {
   await $.session.measure(MEASURE)
   await $.command.run({ command: 'conan-mods', args: 'statusline off' })
   const ui = await band($)
-  expect(await ui.find({ type: 'Text', text: 'opus' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: 'Opus' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: '⚠ off: statusline' })).toBeDefined()
   await ui.unmount()
 })
