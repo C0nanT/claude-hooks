@@ -43,17 +43,16 @@ export function formatResetTime(iso: string, timezone: string | undefined): stri
 }
 
 /** What a segment shows, which picks its colour in the band. */
-export type StatusTone = 'model' | 'context' | 'duration' | 'limit-low' | 'limit-mid' | 'limit-high' | 'branch'
+export type StatusTone = 'model' | 'duration' | 'usage-low' | 'usage-mid' | 'usage-high' | 'branch'
 export type StatusSegment = { text: string; tone: StatusTone }
 
-/** Theme colours per tone; the rate limit goes green under 50%, yellow to 79%, red from 80%. */
+/** Theme colours per tone; ctx and the rate limit go green under 50%, yellow to 79%, red from 80%. */
 export const TONE_COLORS: Record<StatusTone, string> = {
   model: 'claude',
-  context: 'suggestion',
   duration: 'subtle',
-  'limit-low': 'success',
-  'limit-mid': 'warning',
-  'limit-high': 'error',
+  'usage-low': 'success',
+  'usage-mid': 'warning',
+  'usage-high': 'error',
   branch: 'merged',
 }
 
@@ -63,6 +62,19 @@ export const BRANCH_ICON = '\ue0a0'
 /** How each effort level is written next to the model. */
 export const EFFORT_TAGS: Record<string, string> = { low: 'Low', medium: 'Medium', high: 'High', xhigh: 'XHigh', max: 'Max' }
 
+/**
+ * The effort the user's settings.json names for the model: `modelSettings[model].effortLevel`,
+ * else the top-level `effortLevel`. Non-string values are ignored; undefined when none applies.
+ */
+export function settingsEffort(settings: unknown, model: string | undefined): string | undefined {
+  if (typeof settings !== 'object' || settings === null) return undefined
+  const record = settings as Record<string, unknown>
+  const perModel = model === undefined ? undefined : (record.modelSettings as Record<string, unknown> | null | undefined)?.[model]
+  const own = typeof perModel === 'object' && perModel !== null ? (perModel as Record<string, unknown>).effortLevel : undefined
+  if (typeof own === 'string') return own
+  return typeof record.effortLevel === 'string' ? record.effortLevel : undefined
+}
+
 /** The model with its effort tag on the right, as `[High]`; an effort with no tag is shown as `(value)`. */
 export function formatModel(model: string, effort: string | number | undefined): string {
   if (effort === undefined) return model
@@ -70,9 +82,10 @@ export function formatModel(model: string, effort: string | number | undefined):
   return tag === undefined ? `${model} (${effort})` : `${model} [${tag}]`
 }
 
-export function limitTone(percent: number): StatusTone {
-  if (percent < 50) return 'limit-low'
-  return percent < 80 ? 'limit-mid' : 'limit-high'
+/** The tone for a usage percentage, shared by ctx and the rate limit. */
+export function usageTone(percent: number): StatusTone {
+  if (percent < 50) return 'usage-low'
+  return percent < 80 ? 'usage-mid' : 'usage-high'
 }
 
 /** The segments, fields left to right; a field with no data is left out. */
@@ -81,13 +94,14 @@ export function buildStatusSegments(fields: StatusLineFields): StatusSegment[] {
   if (fields.model) segments.push({ text: formatModel(fields.model, fields.effort), tone: 'model' })
   if (fields.contextPercent !== undefined) {
     const tokens = fields.contextTokens === undefined ? '' : ` ${formatTokens(fields.contextTokens)}`
-    segments.push({ text: `ctx:${Math.round(fields.contextPercent)}%${tokens}`, tone: 'context' })
+    const percent = Math.round(fields.contextPercent)
+    segments.push({ text: `ctx:${percent}%${tokens}`, tone: usageTone(percent) })
   }
   if (fields.durationMs !== undefined) segments.push({ text: formatDuration(fields.durationMs), tone: 'duration' })
   if (fields.fiveHourPercent !== undefined) {
     const reset = fields.fiveHourResetsAt === undefined ? undefined : formatResetTime(fields.fiveHourResetsAt, fields.timezone)
     const percent = Math.round(fields.fiveHourPercent)
-    segments.push({ text: `limit:${percent}%${reset === undefined ? '' : ` ↺ ${reset}`}`, tone: limitTone(percent) })
+    segments.push({ text: `limit:${percent}%${reset === undefined ? '' : ` ↺ ${reset}`}`, tone: usageTone(percent) })
   }
   if (fields.branch) segments.push({ text: `${BRANCH_ICON} ${fields.branch}`, tone: 'branch' })
   return segments

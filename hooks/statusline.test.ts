@@ -3,9 +3,9 @@ import { expect, mock, test } from 'claude-code/testing'
 const START = 1_000_000
 const RESET = '2026-10-07T18:30:00Z'
 
-type World = { lines: (string | undefined)[]; clock: any; usage: any; calls: string[][] }
+type World = { lines: (string | undefined)[]; clock: any; usage: any; calls: string[][]; reads: string[] }
 
-function world(on: any, opts: { env?: Record<string, string>; stored?: Record<string, unknown>; rateLimits?: any[]; branch?: string; procVersion?: string; localtime?: string; powershell?: string; startedAt?: number } = {}): World {
+function world(on: any, opts: { env?: Record<string, string>; stored?: Record<string, unknown>; rateLimits?: any[]; branch?: string; procVersion?: string; localtime?: string; powershell?: string; startedAt?: number; settings?: string } = {}): World {
   // The plain line under the prompt unless a test asks for the coloured band.
   mock.store(on, { 'statusline-color': false, ...opts.stored })
   mock.env(on, opts.env ?? {})
@@ -17,13 +17,19 @@ function world(on: any, opts: { env?: Record<string, string>; stored?: Record<st
   }
   const lines: (string | undefined)[] = []
   const calls: string[][] = []
+  const reads: string[] = []
   on('session.measure', (_$: any, e: any) => ({ changed: e.changed }))
   on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }))
   on('command.register', (_$: any, e: any) => ({ value: { command: e.name } }))
   on('session.usage', () => ({ value: usage }))
   on('session.model', () => ({ value: 'opus' }))
   on('ui.status', (_$: any, e: any) => (lines.push(e.text), { value: undefined }))
-  on('fs.read', (_$: any, e: any) => (e.path === '/proc/version' && opts.procVersion ? { value: opts.procVersion } : { deny: 'ENOENT' }))
+  on('fs.read', (_$: any, e: any) => {
+    reads.push(e.path)
+    if (e.path === '/proc/version' && opts.procVersion) return { value: opts.procVersion }
+    if (e.path === '/home/u/.claude/settings.json' && opts.settings !== undefined) return { value: opts.settings }
+    return { deny: 'ENOENT' }
+  })
   on('process.run', (_$: any, e: any) => {
     const argv = [...e.argv]
     calls.push(argv)
@@ -35,7 +41,7 @@ function world(on: any, opts: { env?: Record<string, string>; stored?: Record<st
     if (argv[0] === 'powershell.exe') return opts.powershell === undefined ? fail : ok(opts.powershell)
     return fail
   })
-  return { lines, clock, usage, calls }
+  return { lines, clock, usage, calls, reads }
 }
 
 const MEASURE = { context: { window: 200000, tokens: 28000, percent: 14 }, rateLimits: [], changed: ['context'] }
@@ -84,6 +90,61 @@ test('effort shows once a turn step reported it', async ($, on) => {
   for await (const _chunk of $.turn.step({ turnId: 't', index: 0, model: 'opus', effort: 'high', messageCount: 1 })) void _chunk
   await $.session.measure(MEASURE)
   expect(w.lines.at(-1)).toContain('opus [High]')
+})
+
+const SAVED = JSON.stringify({ effortLevel: 'medium', modelSettings: { opus: { effortLevel: 'high' } } })
+const settingsWorld = (on: any, settings?: string) => world(on, { env: { HOME: '/home/u' }, rateLimits: [], settings })
+
+test('session start shows the saved per-model effort over the top-level one', async ($, on) => {
+  const w = settingsWorld(on, SAVED)
+  await $.session.start(START_EVENT)
+  expect(w.lines.at(-1)).toContain('opus [High]')
+})
+
+test('without a per-model entry the top-level effort is used', async ($, on) => {
+  const w = settingsWorld(on, JSON.stringify({ effortLevel: 'medium', modelSettings: { sonnet: { effortLevel: 'low' } } }))
+  await $.session.start(START_EVENT)
+  expect(w.lines.at(-1)).toContain('opus [Medium]')
+})
+
+test('a turn that reports effort beats the saved one', async ($, on) => {
+  const w = settingsWorld(on, SAVED)
+  on('turn.step', async function* () {
+    return { turnId: 't', index: 0, answer: '', toolUses: [] }
+  })
+  await $.session.start(START_EVENT)
+  for await (const _chunk of $.turn.step({ turnId: 't', index: 0, model: 'opus', effort: 'max', messageCount: 1 })) void _chunk
+  await $.session.measure(MEASURE)
+  expect(w.lines.at(-1)).toContain('opus [Max]')
+})
+
+test('missing settings show the model without effort', async ($, on) => {
+  const w = settingsWorld(on)
+  await $.session.start(START_EVENT)
+  expect(w.lines.at(-1)).toContain('opus ·')
+  expect(w.lines.at(-1)).not.toContain('[')
+})
+
+test('unparseable settings show the model without effort', async ($, on) => {
+  const w = settingsWorld(on, '{not json')
+  await $.session.start(START_EVENT)
+  expect(w.lines.at(-1)).toContain('opus ·')
+  expect(w.lines.at(-1)).not.toContain('[')
+})
+
+test('non-object settings show the model without effort', async ($, on) => {
+  const w = settingsWorld(on, 'null')
+  await $.session.start(START_EVENT)
+  expect(w.lines.at(-1)).toContain('opus ·')
+  expect(w.lines.at(-1)).not.toContain('[')
+})
+
+test('the settings file is read once per session', async ($, on) => {
+  const w = settingsWorld(on, SAVED)
+  await $.session.start(START_EVENT)
+  await $.session.measure(MEASURE)
+  await $.session.measure(MEASURE)
+  expect(w.reads.filter(path => path.endsWith('/.claude/settings.json'))).toHaveLength(1)
 })
 
 test('STATUSLINE_TZ beats the host zone', async ($, on) => {
@@ -137,7 +198,7 @@ test('statusline-color on draws the line in colour above the prompt and clears t
   expect(w.lines.at(-1)).toBeUndefined()
   const ui = await band($)
   expect((await ui.find({ type: 'Text', text: 'opus' }))?.props.color).toBe('claude')
-  expect((await ui.find({ type: 'Text', text: 'ctx:14% 28k' }))?.props.color).toBe('suggestion')
+  expect((await ui.find({ type: 'Text', text: 'ctx:14% 28k' }))?.props.color).toBe('success')
   expect((await ui.find({ type: 'Text', text: 'limit:42% ↺ 18:30' }))?.props.color).toBe('success')
   expect((await ui.find({ type: 'Text', text: ' main' }))?.props.color).toBe('merged')
   expect(await ui.find({ type: 'Text', text: DEFAULT })).toBeUndefined()
@@ -145,6 +206,16 @@ test('statusline-color on draws the line in colour above the prompt and clears t
 })
 
 for (const [percent, color] of [[49, 'success'], [50, 'warning'], [79, 'warning'], [80, 'error']] as const) {
+  test(`ctx at ${percent}% is drawn ${color}`, async ($, on) => {
+    const w = world(on, { stored: { 'statusline-color': true }, rateLimits: [] })
+    w.usage.context = { window: 200000, tokens: 28000, percent }
+    on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', children: [DEFAULT] }))
+    await $.session.measure(MEASURE)
+    const ui = await band($)
+    expect((await ui.find({ type: 'Text', text: 'ctx:' + percent + '% 28k' }))?.props.color).toBe(color)
+    await ui.unmount()
+  })
+
   test(`a rate limit at ${percent}% is drawn ${color}`, async ($, on) => {
     world(on, { stored: { 'statusline-color': true }, rateLimits: [{ kind: 'five_hour', percentUsed: percent }] })
     on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', children: [DEFAULT] }))

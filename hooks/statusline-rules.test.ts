@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { buildStatusLine, buildStatusSegments, chooseTimezone, formatModel, limitTone, formatDuration, formatResetTime, formatTokens, parseWindowsTimezone, pickHostTimezone } from './statusline-rules'
+import { buildStatusLine, buildStatusSegments, chooseTimezone, formatModel, usageTone, formatDuration, formatResetTime, formatTokens, parseWindowsTimezone, pickHostTimezone, settingsEffort } from './statusline-rules'
 
 test('duration: minutes under an hour, 1h05m from there', () => {
   expect(formatDuration(0)).toBe('0m')
@@ -61,21 +61,21 @@ test('STATUSLINE_TZ beats host, host beats Windows', () => {
   expect(chooseTimezone(undefined, undefined, 'Etc/GMT+3')).toBe('Etc/GMT+3')
 })
 
-test('rate limit tone: green under 50, yellow to 79, red from 80', () => {
-  expect(limitTone(0)).toBe('limit-low')
-  expect(limitTone(49)).toBe('limit-low')
-  expect(limitTone(50)).toBe('limit-mid')
-  expect(limitTone(79)).toBe('limit-mid')
-  expect(limitTone(80)).toBe('limit-high')
+test('usage tone (ctx and rate limit): green under 50, yellow to 79, red from 80', () => {
+  expect(usageTone(0)).toBe('usage-low')
+  expect(usageTone(49)).toBe('usage-low')
+  expect(usageTone(50)).toBe('usage-mid')
+  expect(usageTone(79)).toBe('usage-mid')
+  expect(usageTone(80)).toBe('usage-high')
 })
 
 test('segments carry the same text as the line, each with its tone', () => {
   const segments = buildStatusSegments({ model: 'opus', contextPercent: 14, durationMs: 60000, fiveHourPercent: 79.6, branch: 'main' })
   expect(segments).toEqual([
     { text: 'opus', tone: 'model' },
-    { text: 'ctx:14%', tone: 'context' },
+    { text: 'ctx:14%', tone: 'usage-low' },
     { text: '1m', tone: 'duration' },
-    { text: 'limit:80%', tone: 'limit-high' },
+    { text: 'limit:80%', tone: 'usage-high' },
     { text: ' main', tone: 'branch' },
   ])
 })
@@ -89,4 +89,15 @@ test('effort is written right of the model', () => {
   expect(formatModel('opus', 'max')).toBe('opus [Max]')
   expect(formatModel('opus', 'turbo')).toBe('opus (turbo)')
   expect(formatModel('opus', 3)).toBe('opus (3)')
+})
+
+test('settings effort: per-model first, then top-level, strings only', () => {
+  const settings = { effortLevel: 'medium', modelSettings: { opus: { effortLevel: 'high' }, odd: { effortLevel: 5 } } }
+  expect(settingsEffort(settings, 'opus')).toBe('high')
+  expect(settingsEffort(settings, 'sonnet')).toBe('medium')
+  expect(settingsEffort(settings, 'odd')).toBe('medium')
+  expect(settingsEffort({ effortLevel: 3 }, 'opus')).toBeUndefined()
+  expect(settingsEffort({ modelSettings: null }, 'opus')).toBeUndefined()
+  expect(settingsEffort(null, 'opus')).toBeUndefined()
+  expect(settingsEffort('x', undefined)).toBeUndefined()
 })

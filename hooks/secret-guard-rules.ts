@@ -17,8 +17,37 @@ function normalize(path: string, home: string): string {
   return (expanded.startsWith('/') ? '/' : '') + parts.join('/')
 }
 
-/** The name of the secret rule the path matches, or undefined when it is not protected. */
+/** The rule reported when HOME is missing and the path may sit under a home-anchored rule. */
+export const MISSING_HOME_RULE = 'HOME'
+
+const HOME_TOKEN = /^(~|\$HOME|\$\{HOME\})\//
+const HOME_ANCHORED = ['/.ssh/', '/.aws/credentials', '/.config/gcloud/', '/.azure/', '/.docker/config.json', '/.config/gh/hosts.yml']
+
+/** The rules that match on the file name alone, so they hold with or without HOME. Extension rules come after the key names. */
+function matchHomeFree(base: string): string | undefined {
+  if (KEY_NAMES.includes(base)) return base
+  const extension = KEY_EXTENSIONS.find(ext => base.endsWith(ext))
+  if (extension !== undefined) return `*${extension}`
+  if (TOOL_FILES.includes(base)) return base
+  return undefined
+}
+
+/**
+ * With no HOME the home-anchored rules cannot be checked. A path under a HOME token, or an absolute path
+ * that holds one of their segments, is denied for the missing HOME; any other path meets the rules that
+ * need no HOME.
+ */
+function matchWithoutHome(path: string): string | undefined {
+  const full = normalize(path, '')
+  const underHomeToken = HOME_TOKEN.test(path)
+  const anchored = HOME_ANCHORED.some(anchor => full.includes(anchor))
+  if (anchored && (underHomeToken || path.startsWith('/'))) return MISSING_HOME_RULE
+  return matchHomeFree(full.split('/').pop() ?? '') ?? (underHomeToken ? MISSING_HOME_RULE : undefined)
+}
+
+/** The name of the secret rule the path matches, or undefined when it is not protected. An empty `home` means HOME is missing. */
 export function matchSecretPath(path: string, home: string): string | undefined {
+  if (home === '') return matchWithoutHome(path)
   const full = normalize(path, home)
   const base = full.split('/').pop() ?? ''
   const root = home === '' ? undefined : normalize(home, home)
@@ -63,5 +92,6 @@ export function resolveCommandPath(token: string, home: string, cwd: string): st
 }
 
 export function secretBlockedMessage(path: string, rule: string): string {
+  if (rule === MISSING_HOME_RULE) return `BLOCKED: '${path}' may be a credential path and HOME could not be read, so secret-guard cannot check it.`
   return `BLOCKED: '${path}' matches secret rule '${rule}'. The user has prevented you from reading credentials.`
 }

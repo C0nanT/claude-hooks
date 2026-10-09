@@ -1,10 +1,11 @@
 import type { EngineInterface, Register } from 'claude-code'
+import { executedText } from './bash-text-rules'
 import { BASH_BLOCKED_MESSAGE, bashReferencesEnv, DOTENV_FILE_TOOLS, fileBlockedMessage, isBlockedEnvPath } from './dotenv-guard-rules'
 import { blockedMessage, matchDangerous } from './git-guard-rules'
 import { matchRmDangerous, rmBlockedMessage } from './rm-guard-rules'
 import { isExtensionRule, matchSecretCommand, matchSecretPath, resolveCommandPath, SECRET_FILE_TOOLS, secretBlockedMessage } from './secret-guard-rules'
 import { isWsl, SOUND_DEBOUNCE_MS, ubuntuCommands, wslCommand } from './sound-rules'
-import { buildStatusSegments, chooseTimezone, parseWindowsTimezone, pickHostTimezone, SEGMENT_SEPARATOR, TONE_COLORS } from './statusline-rules'
+import { buildStatusSegments, chooseTimezone, parseWindowsTimezone, pickHostTimezone, SEGMENT_SEPARATOR, settingsEffort, TONE_COLORS } from './statusline-rules'
 import type { StatusSegment } from './statusline-rules'
 import { listText, offBandText, parseModsArgs, TOGGLE_NAMES, usageText } from './toggles'
 import type { ToggleName, Toggles } from './toggles'
@@ -38,6 +39,14 @@ async function applyToggle($: EngineInterface, state: StatusLineState, name: Tog
   if (name !== 'statusline' && name !== 'statusline-color') return
   if ((await readToggles($)).statusline) await drawStatusLine($, state)
   else clearStatusLine($, state)
+}
+
+/**
+ * The fail-closed body every guard's `.catch` shares: an error before `next` was called denies the call
+ * (`<plugin>: <guard> failed, <noun> blocked.`); after `next` the result passes through.
+ */
+function failClosed($: EngineInterface, e: unknown, next: ((e: unknown) => unknown) & { called: boolean }, guard: string, noun: 'command' | 'call') {
+  return next.called ? next(e) : { deny: `${$.plugin.name}: ${guard} failed, ${noun} blocked.` }
 }
 
 const CAVEMAN_WARNING = 'caveman: skill não encontrada, rode `npx skills@latest add C0nanT/skills`'
@@ -104,6 +113,9 @@ type StatusLineState = {
   segments?: StatusSegment[]
   timezone?: string
   isTimezoneResolved: boolean
+  /** The parsed ~/.claude/settings.json, read once per session; undefined when missing or invalid. */
+  settings?: unknown
+  isSettingsRead: boolean
 }
 
 /** Trimmed stdout of a command that exited 0; undefined when it failed or cannot start. */
@@ -122,6 +134,20 @@ async function readText($: EngineInterface, path: string): Promise<string | unde
   } catch {
     return undefined
   }
+}
+
+/** The user's ~/.claude/settings.json, parsed and read once per session; undefined when missing, unreadable or invalid. */
+async function readUserSettings($: EngineInterface, state: StatusLineState): Promise<unknown> {
+  if (state.isSettingsRead) return state.settings
+  state.isSettingsRead = true
+  try {
+    const home = await readHome($)
+    const text = home === '' ? undefined : await readText($, `${home}/.claude/settings.json`)
+    state.settings = text === undefined ? undefined : JSON.parse(text)
+  } catch {
+    state.settings = undefined
+  }
+  return state.settings
 }
 
 /** The zone the reset time is drawn in, read once per session: STATUSLINE_TZ, the host, then Windows under WSL. */
@@ -163,9 +189,10 @@ async function drawStatusLine($: EngineInterface, state: StatusLineState): Promi
     const usage = await $.session.usage()
     const fiveHour = usage.rateLimits.find(limit => limit.kind === 'five_hour')
     const branch = await outputOf($, ['git', 'branch', '--show-current'])
+    const model = await $.session.model()
     const segments = buildStatusSegments({
-      model: await $.session.model(),
-      effort: state.effort,
+      model,
+      effort: state.effort ?? settingsEffort(await readUserSettings($, state), model),
       contextPercent: usage.context.percent,
       contextTokens: usage.context.tokens,
       durationMs: (await $.clock.now()) - usage.startedAt,
@@ -198,10 +225,20 @@ async function playDone($: EngineInterface): Promise<void> {
   for (const argv of ubuntuCommands()) if (await runs($, argv)) return
 }
 
+/** Opens the focused pane; when the engine refuses or defers it, a toast says why. The text list stays the answer either way. */
+async function openPane($: EngineInterface): Promise<void> {
+  try {
+    const opened = await $.ui.open({ id: PANE_ID, title: 'conan-mods', focus: true, closeOnEscape: true })
+    if (!opened.isPlaced) $.ui.toast(`conan-mods pane is not shown yet: ${opened.reason}`)
+  } catch (e) {
+    $.ui.toast(`conan-mods pane could not open: ${e instanceof Error ? e.message : String(e)}`)
+  }
+}
+
 export const register: Register = on => {
   let isCavemanWarned = false
   let lastSoundAt: number | undefined
-  const statusLine: StatusLineState = { isTimezoneResolved: false }
+  const statusLine: StatusLineState = { isTimezoneResolved: false, isSettingsRead: false }
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'conan-mods', description: 'List or switch the conan-mods functions', argumentHint: '[<name> on|off]' })
@@ -225,11 +262,7 @@ export const register: Register = on => {
     const command = parseModsArgs(e.args)
     if (command.kind === 'usage') return { text: usageText() }
     if (command.kind === 'list') {
-      try {
-        await $.ui.open({ id: PANE_ID, title: 'conan-mods', focus: true, closeOnEscape: true })
-      } catch {
-        // Where the pane cannot open, the text list below is the answer.
-      }
+      await openPane($)
       return { text: listText(await readToggles($)) }
     }
     await applyToggle($, statusLine, command.name, command.isOn)
@@ -273,20 +306,20 @@ export const register: Register = on => {
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!(await readToggles($))['git-guard']) return next(e)
-    const pattern = matchDangerous(e.command)
+    const pattern = matchDangerous(executedText(e.command))
     return pattern === undefined ? next(e) : { deny: blockedMessage(e.command, pattern) }
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: git-guard failed, command blocked.` }))
+  }).catch(($, e, next) => failClosed($, e, next, 'git-guard', 'command'))
 
   on('tool.call', { tool: [...DOTENV_FILE_TOOLS] }, async ($, e, next) => {
     if (!(await readToggles($))['dotenv-guard']) return next(e)
     const path = typeof e.file_path === 'string' ? e.file_path : ''
     return path !== '' && isBlockedEnvPath(path) ? { deny: fileBlockedMessage(path) } : next(e)
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: dotenv-guard failed, call blocked.` }))
+  }).catch(($, e, next) => failClosed($, e, next, 'dotenv-guard', 'call'))
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!(await readToggles($))['dotenv-guard']) return next(e)
-    return bashReferencesEnv(e.command) ? { deny: BASH_BLOCKED_MESSAGE } : next(e)
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: dotenv-guard failed, command blocked.` }))
+    return bashReferencesEnv(executedText(e.command)) ? { deny: BASH_BLOCKED_MESSAGE } : next(e)
+  }).catch(($, e, next) => failClosed($, e, next, 'dotenv-guard', 'command'))
 
   on('tool.call', { tool: [...SECRET_FILE_TOOLS] }, async ($, e, next) => {
     if (!(await readToggles($))['secret-guard']) return next(e)
@@ -294,23 +327,23 @@ export const register: Register = on => {
     if (path === '') return next(e)
     const rule = matchSecretPath(path, await readHome($))
     return rule === undefined ? next(e) : { deny: secretBlockedMessage(path, rule) }
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: secret-guard failed, call blocked.` }))
+  }).catch(($, e, next) => failClosed($, e, next, 'secret-guard', 'call'))
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!(await readToggles($))['secret-guard']) return next(e)
     const home = await readHome($)
-    for (const match of matchSecretCommand(e.command, home)) {
+    for (const match of matchSecretCommand(executedText(e.command), home)) {
       if (isExtensionRule(match.rule) && !(await pathExists($, resolveCommandPath(match.path, home, await readCwd($))))) continue
       return { deny: secretBlockedMessage(match.path, match.rule) }
     }
     return next(e)
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: secret-guard failed, command blocked.` }))
+  }).catch(($, e, next) => failClosed($, e, next, 'secret-guard', 'command'))
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!(await readToggles($))['rm-guard']) return next(e)
-    const pattern = matchRmDangerous(e.command, await readCwd($))
+    const pattern = matchRmDangerous(executedText(e.command), await readCwd($))
     return pattern === undefined ? next(e) : { deny: rmBlockedMessage(e.command, pattern) }
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: `${$.plugin.name}: rm-guard failed, command blocked.` }))
+  }).catch(($, e, next) => failClosed($, e, next, 'rm-guard', 'command'))
 
   on('prompt.compose', async ($, e, next) => {
     const result = await next(e)

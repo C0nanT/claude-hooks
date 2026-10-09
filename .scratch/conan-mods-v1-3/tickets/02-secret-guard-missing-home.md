@@ -12,12 +12,12 @@
 
 **Blocked by:** 01 (shared fail-closed helper)
 
-Status: ready-for-agent
+Status: ready-for-human
 
-- [ ] With HOME empty, `Read ~/.ssh/id_ed25519` and `cat $HOME/.aws/credentials` are denied with a message naming the missing HOME.
-- [ ] With HOME unreadable (the env read throws), the same calls are denied.
-- [ ] With HOME missing, `Read /project/README.md` and `echo hello` still pass.
-- [ ] With HOME missing, HOME-independent rules (`id_rsa`, `.npmrc`, an existing key file) still deny with their usual rule.
-- [ ] With HOME set, every existing secret-guard test still passes unchanged.
-- [ ] README's secret-guard row mentions that a missing HOME blocks.
-- [ ] `claude plugin validate .` and `claude plugin test .` pass.
+- [x] With HOME empty, `Read ~/.ssh/id_ed25519` and `cat $HOME/.aws/credentials` are denied with a message naming the missing HOME.
+- [x] With HOME unreadable (the env read throws), the same calls are denied.
+- [x] With HOME missing, `Read /project/README.md` and `echo hello` still pass.
+- [x] With HOME missing, HOME-independent rules (`id_rsa`, `.npmrc`, an existing key file) still deny with their usual rule.
+- [x] With HOME set, every existing secret-guard test still passes unchanged.
+- [x] README's secret-guard row mentions that a missing HOME blocks.
+- [x] `claude plugin validate .` and `claude plugin test .` pass.
