@@ -5,7 +5,7 @@ const RESET = '2026-10-07T18:30:00Z'
 
 type World = { lines: (string | undefined)[]; clock: any; usage: any; calls: string[][]; reads: string[] }
 
-function world(on: any, opts: { env?: Record<string, string>; stored?: Record<string, unknown>; rateLimits?: any[]; branch?: string; procVersion?: string; localtime?: string; powershell?: string; startedAt?: number; settings?: string } = {}): World {
+function world(on: any, opts: { env?: Record<string, string>; stored?: Record<string, unknown>; rateLimits?: any[]; branch?: string; procVersion?: string; localtime?: string; powershell?: string; startedAt?: number; settings?: string; model?: () => string } = {}): World {
   // The plain line under the prompt unless a test asks for the coloured band.
   mock.store(on, { 'statusline-color': false, ...opts.stored })
   mock.env(on, opts.env ?? {})
@@ -22,7 +22,7 @@ function world(on: any, opts: { env?: Record<string, string>; stored?: Record<st
   on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }))
   on('command.register', (_$: any, e: any) => ({ value: { command: e.name } }))
   on('session.usage', () => ({ value: usage }))
-  on('session.model', () => ({ value: 'opus' }))
+  on('session.model', () => ({ value: opts.model?.() ?? 'opus' }))
   on('ui.status', (_$: any, e: any) => (lines.push(e.text), { value: undefined }))
   on('fs.read', (_$: any, e: any) => {
     reads.push(e.path)
@@ -261,4 +261,25 @@ test('statusline off clears the coloured line too', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: 'Opus' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: '⚠ off: statusline' })).toBeDefined()
   await ui.unmount()
+})
+
+test('a model switch redraws the line before any turn reports it', async ($, on) => {
+  let model = 'opus'
+  const w = world(on, { rateLimits: [], model: () => model })
+  on('command.run', (_$: any, e: any) => ({ text: '' }))
+  await $.session.start(START_EVENT)
+  expect(w.lines.at(-1)).toContain('Opus ·')
+  model = 'claude-sonnet-5-5'
+  await $.command.run({ command: 'model', args: 'sonnet' })
+  expect(w.lines.at(-1)).toContain('Sonnet 5.5 ·')
+})
+
+test('a new turn redraws with the current model', async ($, on) => {
+  let model = 'opus'
+  const w = world(on, { rateLimits: [], model: () => model })
+  on('turn.start', (_$: any, e: any) => ({ turnId: e.turnId }))
+  await $.session.start(START_EVENT)
+  model = 'claude-haiku-5-5'
+  await $.turn.start({ text: 'hi', turnId: 't' })
+  expect(w.lines.at(-1)).toContain('Haiku 5.5 ·')
 })

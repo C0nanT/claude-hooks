@@ -253,6 +253,25 @@ export const register: Register = on => {
     return result
   }).catch(($, e, next) => next(e))
 
+  // A model or effort switch redraws at once; turn.start is the net for switches that reach neither (picker, fallback).
+  on('command.run', { command: ['model', 'effort'] }, async ($, e, next) => {
+    const result = await next(e)
+    if ((await readToggles($)).statusline) await drawStatusLine($, statusLine)
+    return result
+  })
+
+  on('config.set', { key: 'model' }, async ($, e, next) => {
+    const result = await next(e)
+    if (result.deny === undefined && (await readToggles($)).statusline) await drawStatusLine($, statusLine)
+    return result
+  })
+
+  on('turn.start', async ($, e, next) => {
+    const result = await next(e)
+    if ((await readToggles($)).statusline) await drawStatusLine($, statusLine)
+    return result
+  })
+
   on('turn.step', async function* ($, e, next) {
     if (e.agentId === undefined) statusLine.effort = e.effort
     return yield* next(e)
