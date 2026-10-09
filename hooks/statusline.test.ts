@@ -5,7 +5,7 @@ const RESET = '2026-10-07T18:30:00Z'
 
 type World = { lines: (string | undefined)[]; clock: any; usage: any; calls: string[][]; reads: string[] }
 
-function world(on: any, opts: { env?: Record<string, string>; stored?: Record<string, unknown>; rateLimits?: any[]; branch?: string; procVersion?: string; localtime?: string; powershell?: string; startedAt?: number; settings?: string; model?: () => string } = {}): World {
+function world(on: any, opts: { env?: Record<string, string>; stored?: Record<string, unknown>; rateLimits?: any[]; branch?: string; procVersion?: string; localtime?: string; powershell?: string; startedAt?: number; settings?: string | (() => string); model?: () => string } = {}): World {
   // The plain line under the prompt unless a test asks for the coloured band.
   mock.store(on, { 'statusline-color': false, ...opts.stored })
   mock.env(on, opts.env ?? {})
@@ -27,7 +27,7 @@ function world(on: any, opts: { env?: Record<string, string>; stored?: Record<st
   on('fs.read', (_$: any, e: any) => {
     reads.push(e.path)
     if (e.path === '/proc/version' && opts.procVersion) return { value: opts.procVersion }
-    if (e.path === '/home/u/.claude/settings.json' && opts.settings !== undefined) return { value: opts.settings }
+    if (e.path === '/home/u/.claude/settings.json' && opts.settings !== undefined) return { value: typeof opts.settings === 'function' ? opts.settings() : opts.settings }
     return { deny: 'ENOENT' }
   })
   on('process.run', (_$: any, e: any) => {
@@ -139,12 +139,18 @@ test('non-object settings show the model without effort', async ($, on) => {
   expect(w.lines.at(-1)).not.toContain('[')
 })
 
-test('the settings file is read once per session', async ($, on) => {
-  const w = settingsWorld(on, SAVED)
+test('an effort changed in settings replaces the one the last turn reported', async ($, on) => {
+  let saved = JSON.stringify({ effortLevel: 'medium' })
+  const w = world(on, { env: { HOME: '/home/u' }, rateLimits: [], settings: () => saved })
+  on('turn.step', async function* () {
+    return { turnId: 't', index: 0, answer: '', toolUses: [] }
+  })
   await $.session.start(START_EVENT)
+  expect(w.lines.at(-1)).toContain('Opus - medium')
+  for await (const _chunk of $.turn.step({ turnId: 't', index: 0, model: 'opus', effort: 'medium', messageCount: 1 })) void _chunk
+  saved = JSON.stringify({ effortLevel: 'high' })
   await $.session.measure(MEASURE)
-  await $.session.measure(MEASURE)
-  expect(w.reads.filter(path => path.endsWith('/.claude/settings.json'))).toHaveLength(1)
+  expect(w.lines.at(-1)).toContain('Opus - high')
 })
 
 test('STATUSLINE_TZ beats the host zone', async ($, on) => {

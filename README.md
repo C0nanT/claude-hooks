@@ -62,7 +62,7 @@ The reset time is drawn in your local zone, resolved once per session in this or
 `STATUSLINE_TZ` (an IANA name such as `America/Sao_Paulo`), the host zone
 (`timedatectl`, `/etc/timezone`, the `/etc/localtime` link; plain UTC is ignored),
 and on WSL, when Linux still says UTC, the Windows zone read through PowerShell.
-Effort comes from your `~/.claude/settings.json` (read once per session) until a turn reports it; project/local settings and `--effort` are not read. With `statusline-color` on, the coloured line sits above the
+Effort comes from your `~/.claude/settings.json` (re-read every 2 s; a change there redraws the line) until a turn reports it; project/local settings and `--effort` are not read. With `statusline-color` on, the coloured line sits above the
 off band when both show.
 
 ### The off band
