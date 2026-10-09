@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { buildStatusLine, buildStatusSegments, chooseTimezone, formatModel, usageTone, formatDuration, formatResetTime, formatTokens, parseWindowsTimezone, pickHostTimezone, settingsEffort } from './statusline-rules'
+import { buildStatusLine, buildStatusSegments, chooseTimezone, formatModel, prettyModel, usageTone, formatDuration, formatResetTime, formatTokens, parseWindowsTimezone, pickHostTimezone, settingsEffort } from './statusline-rules'
 
 test('duration: minutes under an hour, 1h05m from there', () => {
   expect(formatDuration(0)).toBe('0m')
@@ -34,11 +34,11 @@ test('the full line, left to right', () => {
     timezone: 'America/Sao_Paulo',
     branch: 'main',
   })
-  expect(line).toBe('opus [High] · ctx:14% 28k · 23m · limit:42% ↺ 15:30 ·  main')
+  expect(line).toBe('Opus - high · ctx:14% 28k · 23m · limit:42% ↺ 15:30 ·  main')
 })
 
 test('a field with no data is omitted', () => {
-  expect(buildStatusLine({ model: 'opus', contextPercent: 14, contextTokens: 28000, durationMs: 60000 })).toBe('opus · ctx:14% 28k · 1m')
+  expect(buildStatusLine({ model: 'opus', contextPercent: 14, contextTokens: 28000, durationMs: 60000 })).toBe('Opus · ctx:14% 28k · 1m')
   expect(buildStatusLine({})).toBe('')
 })
 
@@ -72,7 +72,7 @@ test('usage tone (ctx and rate limit): green under 50, yellow to 79, red from 80
 test('segments carry the same text as the line, each with its tone', () => {
   const segments = buildStatusSegments({ model: 'opus', contextPercent: 14, durationMs: 60000, fiveHourPercent: 79.6, branch: 'main' })
   expect(segments).toEqual([
-    { text: 'opus', tone: 'model' },
+    { text: 'Opus', tone: 'model' },
     { text: 'ctx:14%', tone: 'usage-low' },
     { text: '1m', tone: 'duration' },
     { text: 'limit:80%', tone: 'usage-high' },
@@ -81,14 +81,22 @@ test('segments carry the same text as the line, each with its tone', () => {
 })
 
 test('effort is written right of the model', () => {
-  expect(formatModel('opus', undefined)).toBe('opus')
-  expect(formatModel('opus', 'low')).toBe('opus [Low]')
-  expect(formatModel('opus', 'medium')).toBe('opus [Medium]')
-  expect(formatModel('opus', 'high')).toBe('opus [High]')
-  expect(formatModel('opus', 'xhigh')).toBe('opus [XHigh]')
-  expect(formatModel('opus', 'max')).toBe('opus [Max]')
-  expect(formatModel('opus', 'turbo')).toBe('opus (turbo)')
-  expect(formatModel('opus', 3)).toBe('opus (3)')
+  expect(formatModel('opus', undefined)).toBe('Opus')
+  expect(formatModel('opus', 'low')).toBe('Opus - low')
+  expect(formatModel('opus', 'medium')).toBe('Opus - medium')
+  expect(formatModel('opus', 'high')).toBe('Opus - high')
+  expect(formatModel('opus', 'xhigh')).toBe('Opus - xhigh')
+  expect(formatModel('opus', 'max')).toBe('Opus - max')
+  expect(formatModel('opus', 'turbo')).toBe('Opus - turbo')
+  expect(formatModel('opus', 3)).toBe('Opus - 3')
+})
+
+test('model ids are shown as name and version', () => {
+  expect(prettyModel('claude-sonnet-5-5')).toBe('Sonnet 5.5')
+  expect(prettyModel('claude-opus-5-5')).toBe('Opus 5.5')
+  expect(prettyModel('claude-haiku-4-5-20251001')).toBe('Haiku 4.5')
+  expect(prettyModel('claude-fable-5-1[1m]')).toBe('Fable 5.1')
+  expect(prettyModel('opus')).toBe('Opus')
 })
 
 test('settings effort: per-model first, then top-level, strings only', () => {

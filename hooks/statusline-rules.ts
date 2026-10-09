@@ -59,8 +59,6 @@ export const TONE_COLORS: Record<StatusTone, string> = {
 /** The Nerd Font git-branch glyph, drawn before the branch; needs a Nerd Font in the terminal. */
 export const BRANCH_ICON = '\ue0a0'
 
-/** How each effort level is written next to the model. */
-export const EFFORT_TAGS: Record<string, string> = { low: 'Low', medium: 'Medium', high: 'High', xhigh: 'XHigh', max: 'Max' }
 
 /**
  * The effort the user's settings.json names for the model: `modelSettings[model].effortLevel`,
@@ -75,11 +73,19 @@ export function settingsEffort(settings: unknown, model: string | undefined): st
   return typeof record.effortLevel === 'string' ? record.effortLevel : undefined
 }
 
-/** The model with its effort tag on the right, as `[High]`; an effort with no tag is shown as `(value)`. */
+/** `claude-sonnet-5-5` -> `Sonnet 5.5`; an alias like `opus` -> `Opus`. A trailing `[1m]`-style suffix and an 8-digit date are dropped. */
+export function prettyModel(model: string): string {
+  const parts = model.replace(/\[.*\]$/, '').replace(/^claude-/, '').split('-').filter((part) => part !== '' && !/^\d{8}$/.test(part))
+  const words = parts.filter((part) => !/^\d+$/.test(part)).map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+  const version = parts.filter((part) => /^\d+$/.test(part)).join('.')
+  const name = [...words, ...(version === '' ? [] : [version])].join(' ')
+  return name === '' ? model : name
+}
+
+/** The pretty model with its effort on the right, as `Sonnet 5.5 - medium`. */
 export function formatModel(model: string, effort: string | number | undefined): string {
-  if (effort === undefined) return model
-  const tag = typeof effort === 'string' ? EFFORT_TAGS[effort] : undefined
-  return tag === undefined ? `${model} (${effort})` : `${model} [${tag}]`
+  const name = prettyModel(model)
+  return effort === undefined ? name : `${name} - ${effort}`
 }
 
 /** The tone for a usage percentage, shared by ctx and the rate limit. */

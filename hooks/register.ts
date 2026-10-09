@@ -10,6 +10,7 @@ import type { StatusSegment } from './statusline-rules'
 import { listText, offBandText, parseModsArgs, TOGGLE_NAMES, usageText } from './toggles'
 import type { ToggleName, Toggles } from './toggles'
 
+const EFFORT_POLL_MS = 2000
 const PANE_ID = 'conan-mods'
 const toggles = { plugin: 'conan-mods', key: 'toggles' } as const
 
@@ -109,13 +110,15 @@ async function readCwd($: EngineInterface): Promise<string> {
 
 type StatusLineState = {
   effort?: string | number
+  /** The model the last draw showed; a different one means the effort and settings read so far are stale. */
+  drawnModel?: string
   /** What the coloured band draws; undefined while the plain line is in use or nothing was drawn. */
   segments?: StatusSegment[]
   timezone?: string
   isTimezoneResolved: boolean
-  /** The parsed ~/.claude/settings.json, read once per session; undefined when missing or invalid. */
-  settings?: unknown
-  isSettingsRead: boolean
+  /** The effort settings.json named at the last look; a different one later means the person changed it. */
+  savedEffort?: string
+  isSavedEffortSeen: boolean
 }
 
 /** Trimmed stdout of a command that exited 0; undefined when it failed or cannot start. */
@@ -136,18 +139,28 @@ async function readText($: EngineInterface, path: string): Promise<string | unde
   }
 }
 
-/** The user's ~/.claude/settings.json, parsed and read once per session; undefined when missing, unreadable or invalid. */
-async function readUserSettings($: EngineInterface, state: StatusLineState): Promise<unknown> {
-  if (state.isSettingsRead) return state.settings
-  state.isSettingsRead = true
+/** The user's ~/.claude/settings.json, parsed; undefined when missing, unreadable or invalid. */
+async function readUserSettings($: EngineInterface): Promise<unknown> {
   try {
     const home = await readHome($)
     const text = home === '' ? undefined : await readText($, `${home}/.claude/settings.json`)
-    state.settings = text === undefined ? undefined : JSON.parse(text)
+    return text === undefined ? undefined : JSON.parse(text)
   } catch {
-    state.settings = undefined
+    return undefined
   }
-  return state.settings
+}
+
+/**
+ * Reads the saved effort for the model and tells whether it differs from the last look. A changed
+ * saved effort means the person picked a new one, so the effort the last turn reported is dropped.
+ */
+async function syncSavedEffort($: EngineInterface, state: StatusLineState, model: string): Promise<{ saved: string | undefined; isChanged: boolean }> {
+  const saved = settingsEffort(await readUserSettings($), model)
+  const isChanged = state.isSavedEffortSeen && saved !== state.savedEffort
+  if (isChanged) state.effort = undefined
+  state.savedEffort = saved
+  state.isSavedEffortSeen = true
+  return { saved, isChanged }
 }
 
 /** The zone the reset time is drawn in, read once per session: STATUSLINE_TZ, the host, then Windows under WSL. */
@@ -172,6 +185,7 @@ async function resolveTimezone($: EngineInterface, state: StatusLineState): Prom
   return state.timezone
 }
 
+
 /** Clears both places the status line can be drawn. */
 function clearStatusLine($: EngineInterface, state: StatusLineState): void {
   $.ui.status(undefined)
@@ -190,9 +204,12 @@ async function drawStatusLine($: EngineInterface, state: StatusLineState): Promi
     const fiveHour = usage.rateLimits.find(limit => limit.kind === 'five_hour')
     const branch = await outputOf($, ['git', 'branch', '--show-current'])
     const model = await $.session.model()
+    if (state.drawnModel !== undefined && state.drawnModel !== model) state.effort = undefined
+    state.drawnModel = model
+    const { saved } = await syncSavedEffort($, state, model)
     const segments = buildStatusSegments({
       model,
-      effort: state.effort ?? settingsEffort(await readUserSettings($, state), model),
+      effort: state.effort ?? saved,
       contextPercent: usage.context.percent,
       contextTokens: usage.context.tokens,
       durationMs: (await $.clock.now()) - usage.startedAt,
@@ -217,6 +234,17 @@ async function drawStatusLine($: EngineInterface, state: StatusLineState): Promi
   }
 }
 
+/** Redraws when settings.json names a different effort than at the last look: the effort picker has no event of its own. */
+async function pollEffort($: EngineInterface, state: StatusLineState): Promise<void> {
+  try {
+    if (!(await readToggles($)).statusline) return
+    const { isChanged } = await syncSavedEffort($, state, await $.session.model())
+    if (isChanged) await drawStatusLine($, state)
+  } catch {
+    // The next poll tries again.
+  }
+}
+
 async function playDone($: EngineInterface): Promise<void> {
   if (isWsl(await readProcVersion($), await $.env.get('WSL_DISTRO_NAME'))) {
     await runs($, wslCommand())
@@ -238,12 +266,13 @@ async function openPane($: EngineInterface): Promise<void> {
 export const register: Register = on => {
   let isCavemanWarned = false
   let lastSoundAt: number | undefined
-  const statusLine: StatusLineState = { isTimezoneResolved: false, isSettingsRead: false }
+  const statusLine: StatusLineState = { isTimezoneResolved: false, isSavedEffortSeen: false }
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'conan-mods', description: 'List or switch the conan-mods functions', argumentHint: '[<name> on|off]' })
     const result = await next(e)
     if ((await readToggles($)).statusline) await drawStatusLine($, statusLine)
+    $.clock.every(EFFORT_POLL_MS, () => void pollEffort($, statusLine))
     return result
   })
 
@@ -252,6 +281,26 @@ export const register: Register = on => {
     if ((await readToggles($)).statusline) await drawStatusLine($, statusLine)
     return result
   }).catch(($, e, next) => next(e))
+
+  // A model or effort switch redraws at once; turn.start is the net for switches that reach neither (picker, fallback).
+  on('command.run', { command: ['model', 'effort'] }, async ($, e, next) => {
+    const result = await next(e)
+    if (e.command === 'effort') statusLine.effort = undefined
+    if ((await readToggles($)).statusline) await drawStatusLine($, statusLine)
+    return result
+  })
+
+  on('config.set', { key: 'model' }, async ($, e, next) => {
+    const result = await next(e)
+    if (result.deny === undefined && (await readToggles($)).statusline) await drawStatusLine($, statusLine)
+    return result
+  })
+
+  on('turn.start', async ($, e, next) => {
+    const result = await next(e)
+    if ((await readToggles($)).statusline) await drawStatusLine($, statusLine)
+    return result
+  })
 
   on('turn.step', async function* ($, e, next) {
     if (e.agentId === undefined) statusLine.effort = e.effort
